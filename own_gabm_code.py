@@ -55,40 +55,56 @@ agent_names = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10"]
 output_directory = "output_files_gabm"
 output_file = ""
 
-# Personality trait promts
-trait_high_neuro = "Panic easily, am filled with doubts about things, feel threatened easily, get stressed out easily, fear for the worst, worry about things, have a proactive approach to mitigating risks."
-trait_low_neuro = "Feel comfortable with myself, rarely get irritated, am not easily bothered by things, seldom get mad, remain calm under pressure."
+# Personality trait descriptions
+high_neuro = "Easily feel panic, often doubt things, feel vulnerable to threats, get stressed quickly, fear the worst, and often worry. I take active steps to mitigate risks."
+low_neuro = "Feel confident, am rarely irritated, remain unbothered, seldom get angry, and stay calm under pressure."
 
-trait_high_extra = "Am skilled in handling social situations, know how to captivate people, start conversations, don't mind being the center of attention, cheer people up."
-trait_low_extra = "Have little to say, keep in the background, don't like to draw attention to myself, don't talk a lot, find it difficult to approach others."
+high_extra = "Am skilled at socializing, captivate people, start conversations easily, enjoy being the center of attention, and cheer people up."
+low_extra = "Prefer to remain in the background, keep quiet, avoid attention, don’t engage much, and find it difficult to approach others."
 
-trait_high_open = "Have a vivid imagination, carry the conversation to a higher level, enjoy hearing new ideas, enjoy thinking about things, get excited by new ideas."
-trait_low_open = "Am not interested in abstract ideas, rarely look for a deeper meaning in things, am not interested in theoretical discussions, have difficulty understanding abstract ideas."
+high_open = "Have a vivid imagination, elevate conversations, enjoy new ideas, and get excited by thinking deeply."
+low_open = "Prefer practical over abstract ideas, rarely seek deeper meaning, and have difficulty with theoretical discussions."
 
-trait_high_agree = "Have a good word for everyone, believe that others have good intentions, respect others, trust what people say, am easy to satisfy, treat all people equally."
-trait_low_agree = "Have a sharp tongue, get back at others, believe that I am better than others, contradict others."
+high_agree = "Have a kind word for everyone, assume good intentions, respect others, trust people, and treat everyone equally."
+low_agree = "Speak directly, hold grudges, feel superior, and often contradict others."
 
-trait_high_consc = "Ensure that all factors are carefully considered and analyzed, pay attention to details, get chores done right away, make plans and stick to them, complete tasks successfully, do things according to a plan."
-trait_low_consc = "Find it difficult to get down to work, do just enough work to get by, don't see things through, don't put my mind on the task at hand, make a mess of things."
+high_consc = "Carefully consider all factors, pay attention to details, get tasks done immediately, plan thoroughly, and follow through on tasks."
+low_consc = "Struggle to focus, do just enough to get by, lose interest quickly, and often leave tasks unfinished."
+
 
 #Personality types
-type1 = trait_high_neuro+trait_low_extra+trait_high_open+trait_low_agree+trait_high_consc
-type2 = trait_low_neuro+trait_high_extra+trait_high_open+trait_low_agree+trait_high_consc
-type3 = trait_high_neuro+trait_high_extra+trait_low_open+trait_low_agree+trait_high_consc
-type4 = trait_high_neuro+trait_low_extra+trait_low_open+trait_high_agree+trait_low_consc
-type5 = trait_high_neuro+trait_high_extra+trait_high_open+trait_low_agree+trait_low_consc
-type6 = trait_low_neuro+trait_high_extra+trait_low_open+trait_high_agree+trait_low_consc
-type7 = trait_high_neuro+trait_low_extra+trait_low_open+trait_high_agree+trait_low_consc
-type8 = trait_low_neuro+trait_low_extra+trait_high_open+trait_high_agree+trait_low_consc
-type9 = trait_low_neuro+trait_high_extra+trait_high_open+trait_low_agree+trait_high_consc
-type10 = trait_high_neuro+trait_low_extra+trait_low_open+trait_high_agree+trait_high_consc
+type1 = high_neuro+low_extra+high_open+low_agree+high_consc
+type2 = low_neuro+high_extra+high_open+low_agree+high_consc
+type3 = high_neuro+high_extra+low_open+low_agree+high_consc
+type4 = high_neuro+low_extra+low_open+high_agree+low_consc
+type5 = high_neuro+high_extra+high_open+low_agree+low_consc
+type6 = low_neuro+high_extra+low_open+high_agree+low_consc
+type7 = high_neuro+low_extra+low_open+high_agree+low_consc
+type8 = low_neuro+low_extra+high_open+high_agree+low_consc
+type9 = low_neuro+high_extra+high_open+low_agree+high_consc
+type10 = high_neuro+low_extra+low_open+high_agree+high_consc
 
 #Prompts
-introduction = "Imagine you have crash-landed in the Atacama Desert in mid-July. It's around 10:00 am, and the temperature will reach 110°F (43°C), but at ground level, it will feel like 130°F (54°C). Your group of five non-injured survivors has salvaged 15 items from the wreckage."
-items = "Torch with 4 battery-cells, Folding knife, Air map of the area, Plastic raincoat (large size), Magnetic compass, First-aid kit, 45 calibre pistol (loaded), Parachute (red & white), Bottle of 1000 salt tablets, 2 litres of water per person, A book entitled ‘Desert Animals That Can Be Eaten’, Sunglasses (for everyone), 2 litres of 180 proof liquor, Overcoat (for everyone), A cosmetic mirror."
-instruction_individual = "Individually RANK the following items in order of importance for survival of the team, with ‘1’ being the most important and ‘15’ the least. You need to do this without communicating with your co-workers. Your decision should focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item. When you have an individually made finalized list, please state ‘This is my individual list:’ followed by the items in ranked order seperated by commas."
-instruction_collaborative = "Your goal as a team is now to collaboratively RANK the 15 items in order of importance for survival of the team, with ‘1’ being the most important and ‘15’ the least. Work together to discuss and finalize a ranked list of the 15 items. This may involve negotiating and persuading others to consider your reasoning. Your decision should still focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item. There are no turn-taking rules - whenever you have something to say, just start speaking."
-guidelines =  "Listen to others: Consider your co-workers arguments and respect diverse perspectives. Stay focused on the task: Avoid off-topic discussions and prioritize the goal of ranking items for survival. Communicate clearly and persuasively: If you believe an item should be ranked higher or lower, explain why with reference to the desert environment and the survival priorities. The group decision is finalized when you all agree on the ranked order of items. When you have decided on a list, please state ‘This is our final list’ followed by the ranked list, and stop conversing. Save this list in a csv file. If there have been 30 turn-takings in the discussion, and you still haven’t reached consensus on a finalized list, please state ‘Consensus not reached.’"
+introduction = """Imagine you have crash-landed in the Atacama Desert in mid-July. 
+It's around 10:00 am, and the temperature will reach 110°F (43°C), but at ground level, it will feel like 130°F (54°C). 
+Your group of five non-injured survivors has salvaged 15 items from the wreckage. 
+Survival will depend on making the right choices. The desert is vast, and rescue is uncertain. 
+Every item’s utility could be the difference between life and death."""
+items = """Torch with 4 battery-cells, Folding knife, Air map of the area, Plastic raincoat (large size), Magnetic compass, First-aid kit, 45 calibre pistol (loaded), Parachute (red & white), Bottle of 1000 salt tablets, 2 litres of water per person, A book entitled ‘Desert Animals That Can Be Eaten’, Sunglasses (for everyone), 2 litres of 180 proof liquor, Overcoat (for everyone), A cosmetic mirror."""
+instruction_individual = """Individually, rank the items in order of importance for the team’s survival, where ‘1’ is the most crucial, and ‘15’ is the least. 
+Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
+Rank them without any input from your co-workers. 
+Once finished, state ‘This is my individual list:’ followed by the ranked items, separated by commas."""
+instruction_collaborative = """Your goal as a team is now to collaboratively RANK the 15 items in order of importance for survival of the team, with ‘1’ being the most important and ‘15’ the least. 
+Work together to discuss and finalize a ranked list of the 15 items. This may involve negotiating and persuading others to consider your reasoning. 
+Your decision should still focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item."""
+guidelines = """There are no turn-taking rules: if you have something to say, speak up. 
+Listen actively to others, considering their reasoning and respecting diverse perspectives. 
+Stay focused on the survival task, and avoid off-topic discussions. 
+Communicate clearly and persuasively: if you believe an item should be ranked higher or lower, explain why, considering survival priorities in the desert environment. 
+Aim for a collaborative and respectful conversation. The group decision is finalized when all members agree on a ranked list of items.
+When you have decided on a list, please state ‘This is our final list’ followed by the items in ranked order seperated by commas, and stop conversing. 
+If there have been 30 turn-takings in the discussion, and you still haven’t reached consensus on a finalized list, please state ‘Consensus not reached.’ and stop conversing."""
 
 # Ensure the directory exists   
 output_directory = "output_files_gabm"     
@@ -175,25 +191,26 @@ class Agent():
             print(f"Warning: {self.name}'s ranking does not contain exactly 15 items.")
             sys.stdout = sys.__stdout__  # Reset stdout to its default value
     
-    def instructions(self) : #method
-        task_prompt = f"""
-        SYSTEM:
+    def instructions(self):
+        # Define the system message (personality and scenario setup)
+        instruct_system_prompt = f"""
         Your name is {self.name}, and you have the following personality profile: {self.traits}.
-
-        USER:
-        ###context###
         You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
         None of you have specialized knowledge about survival in a desert.
         The task has the following introduction: {introduction}.
-        The items available are these: {items}.
-        
-        ###instructions###
-        Based on the above context, use your assigned personality traits to guide your approach to the following tasks.
-        First, you need to complete the individual task , with the following instructions: {instruction_individual}.
+        The items available are: {items}.
+        """
+    
+        # Define the user message (individual ranking instructions)
+        instruct_user_prompt = f"""
+        Based on the personality trait descriptions, use your assigned personality profile to guide your approach to the following tasks.
+        First, you need to complete the individual task, with the following instructions: {instruction_individual}.
         When you have completed this task, wait for new instructions.
-        """        
+        """
 
-        messages = [{'role':'user', 'content': task_prompt}]
+        messages = [
+            {'role': 'system', 'content': instruct_system_prompt},
+            {'role': 'user', 'content': instruct_user_prompt}]
         try:
             output = self.get_output_from_chatgpt(messages)            
             self.assign_ranking(output) #Saves the ranked items in a list
@@ -206,16 +223,26 @@ class Agent():
         sys.stdout = sys.__stdout__  # Reset stdout to its default value
 
     def start_task(self) : #method
-        task_prompt = f"""
-        ###instructions###
-        # Now that all {TEAM_SIZE} of you have presented your individual list, you move on to the collaborative task, with the following instructions: {instruction_collaborative}.
-        For this discussion, use these guidelines for collaboration: {guidelines}.
-
-        Here is a resume of the discussion so far: "{printed_outputs}". 
-        You can choose to reply now or wait for someone else to reply. 
+        # System setup (scenario and task context)
+        start_task_system_prompt = f"""
+        Now that you have completed your individual ranking, it is time to collaborate.
+        Your name and personality profile remain: {self.name}, {self.traits}.
+        The task introduction remains: {introduction}.
+        The items remain: {items}.
+        You can choose to reply immediately or wait for someone else to reply. 
         If you choose to wait for someone else to reply, please do not reply anything.
         """
-        messages = [{'role':'user', 'content': task_prompt}]
+    
+        # User instructions (collaborative task and guidelines)
+        start_task_user_prompt = f"""
+        Now you move on to the collaborative task with the following instructions: {instruction_collaborative}.
+        For this discussion, use these guidelines for collaboration: {guidelines}.
+        Here is a resume of the discussion so far: "{printed_outputs}".
+        """
+
+        messages = [
+            {'role': 'system', 'content': start_task_system_prompt},
+            {'role': 'user', 'content': start_task_user_prompt}]
         try:
             output = self.get_output_from_chatgpt(messages)  # Get messages from agent
             sys.stdout = sys.__stdout__  # Reset stdout to its default value
@@ -230,12 +257,24 @@ class Agent():
 
     def interactive_task(self) : #method
         global i
-        task_prompt = f"""
-        Here is a resume of the discussion so far: "{printed_outputs}".
-        You can choose to reply now or wait for someone else to reply. 
+        # System setup (discussion context)
+        interactive_system_prompt = f"""
+        Continue the collaborative ranking task discussion based on the previous context.
+        Your name and personality profile remain: {self.name}, {self.traits}.
+        The task introduction remains: {introduction}.
+        The items remain: {items}.
+        You can choose to reply immediately or wait for someone else to reply. 
         If you choose to wait for someone else to reply, please do not reply anything.
         """
-        messages = [{'role':'user', 'content': task_prompt}]
+
+        # User instructions (discussion guidelines)
+        interactive_user_prompt = f"""
+        Here is a resume of the discussion so far: "{printed_outputs}".       
+        """
+        messages = [
+            {'role': 'system', 'content': interactive_system_prompt},
+            {'role': 'user', 'content': interactive_user_prompt}
+        ]
         try:
             output = self.get_output_from_chatgpt(messages)  # Get messages from agent
             sys.stdout = sys.__stdout__  # Reset stdout to its default value
@@ -300,7 +339,7 @@ class World():
                 output_capture.truncate(0)  # Clear the StringIO object
                 output_capture.seek(0)  # Move to the start of the StringIO object
                 if i > 20:
-                    print("Terminating as i > 20")
+                    print("Terminating as they agreed on list")
                     return  # Use return to exit the function if i > 10
         root = os.getcwd()
         csv_path = root+ '\\' +output_directory+ '\\'  +filename
