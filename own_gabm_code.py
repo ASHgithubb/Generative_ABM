@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
-
 # TITEL: Generalized ABM Performing a CPS-task with Teams Consisting of Different Personality Traits
-
+#------------------------------
 # Setup code space
+#------------------------------
 import pandas as pd
 import numpy as np
 import os
@@ -15,7 +13,8 @@ from datetime import datetime
 import time
 from multiprocessing import Pool, Manager
 from functools import partial
-
+import shelve
+from dotenv import load_dotenv
 import random
 from random import choice
 import csv
@@ -26,12 +25,14 @@ from openai.types import ChatModel
 import io
 
 
-# """ Creating global variables and classes"""
-
+#------------------------------
+# Creating global variables and classes
+#------------------------------
 # Constants
 TEAM_SIZE = 5  # Adjust as necessary
 no_simulations = 10
 i=0
+turn_takings = 20
 
 # Global Variables
 openai_api_key = os.getenv('OPENAI_API_KEY')  # Use environment variable
@@ -71,7 +72,6 @@ low_agree = "Speak directly, hold grudges, feel superior, and often contradict o
 high_consc = "Carefully consider all factors, pay attention to details, get tasks done immediately, plan thoroughly, and follow through on tasks."
 low_consc = "Struggle to focus, do just enough to get by, lose interest quickly, and often leave tasks unfinished."
 
-
 #Personality types
 type1 = high_neuro+low_extra+high_open+low_agree+high_consc
 type2 = low_neuro+high_extra+high_open+low_agree+high_consc
@@ -85,41 +85,187 @@ type9 = low_neuro+high_extra+high_open+low_agree+high_consc
 type10 = high_neuro+low_extra+low_open+high_agree+high_consc
 
 #Prompts
-introduction = """Imagine you have crash-landed in the Atacama Desert in mid-July. 
+introduction = f"""Imagine you have crash-landed in the Atacama Desert in mid-July. 
 It's around 10:00 am, and the temperature will reach 110°F (43°C), but at ground level, it will feel like 130°F (54°C). 
 Your group of five non-injured survivors has salvaged 15 items from the wreckage. 
 Survival will depend on making the right choices. The desert is vast, and rescue is uncertain. 
 Every item’s utility could be the difference between life and death."""
-items = """Torch with 4 battery-cells, Folding knife, Air map of the area, Plastic raincoat (large size), Magnetic compass, First-aid kit, 45 calibre pistol (loaded), Parachute (red & white), Bottle of 1000 salt tablets, 2 litres of water per person, A book entitled ‘Desert Animals That Can Be Eaten’, Sunglasses (for everyone), 2 litres of 180 proof liquor, Overcoat (for everyone), A cosmetic mirror."""
-instruction_individual = """Individually, rank the items in order of importance for the team’s survival, where ‘1’ is the most crucial, and ‘15’ is the least. 
-Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
-Rank them without any input from your co-workers. 
-Once finished, state ‘This is my individual list:’ followed by the ranked items, separated by commas."""
-instruction_collaborative = """Your goal as a team is now to collaboratively RANK the 15 items in order of importance for survival of the team, with ‘1’ being the most important and ‘15’ the least. 
-Work together to discuss and finalize a ranked list of the 15 items. This may involve negotiating and persuading others to consider your reasoning. 
-Your decision should still focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item."""
-guidelines = """There are no turn-taking rules: if you have something to say, speak up. 
-Listen actively to others, considering their reasoning and respecting diverse perspectives. 
-Stay focused on the survival task, and avoid off-topic discussions. 
-Communicate clearly and persuasively: if you believe an item should be ranked higher or lower, explain why, considering survival priorities in the desert environment. 
-Aim for a collaborative and respectful conversation. The group decision is finalized when all members agree on a ranked list of items.
-When you have decided on a list, please state ‘This is our final list’ followed by the items in ranked order seperated by commas, and stop conversing. 
-If there have been 30 turn-takings in the discussion, and you still haven’t reached consensus on a finalized list, please state ‘Consensus not reached.’ and stop conversing."""
 
+items = f"""Torch with 4 battery-cells, Folding knife, Air map of the area, Plastic raincoat (large size), Magnetic compass, First-aid kit, 45 calibre pistol (loaded), Parachute (red & white), Bottle of 1000 salt tablets, 2 litres of water per person, A book entitled ‘Desert Animals That Can Be Eaten’, Sunglasses (for everyone), 2 litres of 180 proof liquor, Overcoat (for everyone), A cosmetic mirror."""
+
+instruction_individual = f"""Using your assigned personality traits, individually rank the items in order of importance for the team’s survival, where ‘1’ is the most crucial, and ‘15’ is the least. 
+Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
+Complete the task without any input from your co-workers. 
+Desired output: The items in ranked order separated by commas, and end with the statement: 'ranking_complete'."""
+
+instruction_collaborative = f"""Your goal as a team is now to collaboratively RANK the 15 items in order of importance for survival of the team, with ‘1’ being the most important and ‘15’ the least. 
+Work together to discuss and finalize a ranked list of the 15 items. This may involve negotiating and persuading others to consider your reasoning. 
+Your decision should still focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item.
+When you have decided on a list, please state ‘This is our final list’ followed by the items in ranked order seperated by commas, and end with 'ranking_complete' and stop conversing. 
+If there have been {turn_takings} turn-takings in the discussion, and you still haven’t reached consensus on a finalized list, please state ‘Consensus not reached.’ and stop conversing."""
+
+guidelines = f"""You can choose to reply immediately or wait for someone else to reply.  
+Listen actively to your coworkers, considering their reasoning and respecting diverse perspectives. 
+Stay focused on the survival task, and avoid off-topic discussions. You have {turn_takings} turn-takings in total to reach consensus.
+Communicate clearly and persuasively: if you believe an item should be ranked higher or lower, according to you individual ranking explain why, considering survival priorities in the desert environment. 
+Aim for a collaborative and respectful conversation. The group decision is finalized when all members agree on a ranked list of items."""
+#If you choose to wait for someone else to reply, please just reply 'thinking...' and wait for your next turn.
+
+# Define the system message (personality and scenario setup)
+instruct_system_prompt_message = f"""
+Please use this personality profile to guide your approach to the task.
+You do nothave specialized knowledge about survival in a desert.
+The task has the following introduction: {introduction}.
+The items available are: {items}.
+"""  
+# Define the user message (individual ranking instructions)
+instruct_user_prompt_message = f"""
+First, you need to complete the individual task, with the following instructions: {instruction_individual}.
+When you have completed this task, wait for new instructions.
+"""
+# System setup (scenario and task context)
+start_task_system_prompt_message1 = f"""
+Now that you have completed your individual ranking, it is time to collaborate. 
+You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
+None of you have specialized knowledge about survival in a desert.
+For this discussion, use these guidelines for collaboration: {guidelines}.
+"""
+start_task_system_prompt_message2 = f"""
+Please use this personality profile to guide your behavior, communication style, and approach to the task.
+The task introduction remains: {introduction}.
+The items remain: {items}.
+""" 
+
+# User instructions (collaborative task and guidelines)
+start_task_user_prompt_message = f"""
+Now you move on to the collaborative task with the following instructions: {instruction_collaborative}.
+If you understand these instructions, please state 'I understand' and wait for further instructions."
+"""
+
+# System setup (discussion context)
+interactive_system_prompt_message = f"""
+Please use this personality profile to guide your behavior, communication style, and approach to the task.
+You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
+None of you have specialized knowledge about survival in a desert.
+For this discussion, use these guidelines for collaboration: {guidelines}.
+The task introduction remains: {introduction}.
+The items remain: {items}. 
+"""
+ # User instructions (discussion guidelines)
+interactive_user_prompt_message = f"""
+Continue the collaborative ranking task discussion based on the previous context.
+Still, use your personality profile to guide your behavior, communication style, and approach to the task.        
+"""
 # Ensure the directory exists   
-output_directory = "output_files_gabm"     
-if not os.path.exists(output_directory):
-    os.makedirs(output_directory)
+output_directory_conversation = "output_files_conversation"     
+if not os.path.exists(output_directory_conversation):
+    os.makedirs(output_directory_conversation)
+
+output_directory_saved = "output_files_saved"     
+if not os.path.exists(output_directory_saved):
+    os.makedirs(output_directory_saved)
 
 #Capturing print statements
 output_capture = io.StringIO()  # Create a StringIO object to capture output
 printed_outputs = [] # Initialize a list to store individual outputs
+saved_outputs = []
+interactive_task_outputs = []
 sys.stdout = output_capture  # Redirect stdout to the StringIO object
 sys.stdout = sys.__stdout__  # Reset stdout to its default value
 
 print("Breakpoint: setup done")
 
+# --------------------------------------------------------------
+# Create assistants and threads
+# --------------------------------------------------------------
+
+# Create assistants
+def create_assistant():
+    assistant = openai.beta.assistants.create(
+        name="T1",
+        instructions="You are named X.",
+        tools=[{"type": "code_interpreter"}], #Could also be retrieval
+        model="gpt-4o-mini",
+        #file_ids=[file.id],
+    )
+    return assistant
+
+assistant = create_assistant()
+
+# Thread management
+def check_if_thread_exists(wa_id):
+    with shelve.open("threads_db") as threads_shelf:
+        return threads_shelf.get(wa_id, None)
+
+def store_thread(wa_id, thread_id):
+    with shelve.open("threads_db", writeback=True) as threads_shelf:
+        threads_shelf[wa_id] = thread_id
+
+# Generate response
+def generate_response(message_body, wa_id, name):
+    # Check if there is already a thread_id for the wa_id
+    thread_id = check_if_thread_exists(wa_id)
+
+    # If a thread doesn't exist, create one and store it
+    if thread_id is None:
+        print(f"Creating new thread for {name} with wa_id {wa_id}")
+        thread = openai.beta.threads.create()
+        store_thread(wa_id, thread.id)
+        thread_id = thread.id
+
+    # Otherwise, retrieve the existing thread
+    else:
+        print(f"Retrieving existing thread for {name} with wa_id {wa_id}")
+        thread = openai.beta.threads.retrieve(thread_id)
+
+    # Add message to thread
+    message = openai.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=message_body,
+    )
+
+    # Run the assistant and get the new message
+    new_message = run_assistant(thread)
+    print(f"To {name}:", new_message)
+    return new_message
+
+# Run assistant
+def run_assistant(thread):
+    # Retrieve the Assistant
+    assistant = openai.beta.assistants.retrieve("asst_vRY0odFSSoUewAfNa0nrh3tQ")
+
+    # Run the assistant
+    run = openai.beta.threads.runs.create(
+        thread_id=thread.id,
+        assistant_id=assistant.id,
+        instructions="..."
+    )
+
+    # Wait for completion
+    while run.status != "completed":
+        # Be nice to the API
+        time.sleep(0.5)
+        run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+
+    # Retrieve the Messages
+    messages = openai.beta.threads.messages.list(thread_id=thread.id)
+    print(messages)
+    new_message = messages.data[0].content #maybe add: [0].text.value
+    print(f"Generated message: {new_message}")
+    return new_message
+
+# Test assistant
+#new_message = generate_response("What's the check in time?", "123", "John")
+#new_message = generate_response("What's the pin for the lockbox?", "456", "Sarah")
+#new_message = generate_response("What was my previous question?", "123", "John")
+#new_message = generate_response("What was my previous question?", "456", "Sarah")
+
+print("Breakpoint: Creating assistans and messages done")
+
+#------------------------------
 # Defining the agent class  
+#------------------------------
 class Agent():
     def __init__(self): #constructor
         self.ranking = []
@@ -145,47 +291,43 @@ class Agent():
         if self.name == "T10":
             self.traits = type10
 
-
-    def get_output_from_chatgpt(self, messages, 
-                            model ="gpt-4o-mini", temperature=0): #method
+    def get_output_from_chatgpt(self, messages, model ="gpt-4o-mini", temperature=0.5, max_tokens = 1000, stop_sequence=["ranking_complete", "Consensus not reached."]): #method
         # temperature is the degree of randomness of the model's output
         success = False
         retry = 0
         max_retries = 10
         response = None  # Initialize response to None
-
         while retry < max_retries and not success:
             try:
                 response = openai.chat.completions.create(
                     model=model,
                     messages=messages,
                     temperature=temperature,
+                    max_tokens=max_tokens,
+                    stop=stop_sequence
                 )
                 success = True
             except Exception as e:
                 print(f"Error: {e}\nRetrying ...")
                 retry += 1
                 time.sleep(0.5)
-
         if response is not None:  # Check if response was successfully obtained
-            sys.stdout = output_capture  # Redirect stdout to the StringIO object
+            sys.stdout = output_capture  # Redirect stdout to the StringIO object            
             return response.choices[0].message.content #The first answer generated
         else:
             print("Failed to get a response after multiple retries.")
             return None  # Return None or handle the error as needed
-
     
-    def assign_ranking(self, output):
-        # Find the list of ranked items in the output
-        start_phrase = "This is my individual list:"
-        if start_phrase in output:
-            output.replace(start_phrase, '')
-            self.ranking.append(output.split(','))
-        else:
-            sys.stdout = output_capture  # Redirect stdout to the StringIO object
-            print(f"Error: Could not find the ranking list in {self.name}'s output.")
-            self.ranking.append('no presented ranking')
-            sys.stdout = sys.__stdout__  # Reset stdout to its default value
+    def assign_ranking(self, output):        
+        #start_phrase = "This is my individual list:"
+        #if start_phrase in output:
+            #output.replace(start_phrase, '')
+        self.ranking.append(output.split(','))
+        #else:
+        #    sys.stdout = output_capture  # Redirect stdout to the StringIO object
+        #    print(f"Error: Could not find the ranking list in {self.name}'s output.")
+        #    self.ranking.append('no presented ranking')
+        #    sys.stdout = sys.__stdout__  # Reset stdout to its default value
         if len(self.ranking[0]) != 15: # Ensure we have exactly 15 elements where elements are equal to columns
             sys.stdout = output_capture  # Redirect stdout to the StringIO object
             print(f"Warning: {self.name}'s ranking does not contain exactly 15 items.")
@@ -195,24 +337,19 @@ class Agent():
         # Define the system message (personality and scenario setup)
         instruct_system_prompt = f"""
         Your name is {self.name}, and you have the following personality profile: {self.traits}.
-        You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
-        None of you have specialized knowledge about survival in a desert.
-        The task has the following introduction: {introduction}.
-        The items available are: {items}.
-        """
-    
+        {instruct_system_prompt_message}
+        """    
         # Define the user message (individual ranking instructions)
-        instruct_user_prompt = f"""
-        Based on the personality trait descriptions, use your assigned personality profile to guide your approach to the following tasks.
-        First, you need to complete the individual task, with the following instructions: {instruction_individual}.
-        When you have completed this task, wait for new instructions.
-        """
+        instruct_user_prompt = instruct_user_prompt_message
 
         messages = [
             {'role': 'system', 'content': instruct_system_prompt},
             {'role': 'user', 'content': instruct_user_prompt}]
         try:
-            output = self.get_output_from_chatgpt(messages)            
+            output = self.get_output_from_chatgpt(messages) 
+            printed_outputs.append([output_capture.getvalue().strip()])  # Append the captured output to the list
+            output_capture.truncate(0)  # Reset the output capture for the next print. Clear the StringIO object
+            output_capture.seek(0)  # Move to the start of the StringIO object           
             self.assign_ranking(output) #Saves the ranked items in a list
         except Exception as e: #If the above "try" fails
             print(f"{e}\nProgram paused . Retrying after 60 s ...")
@@ -225,26 +362,20 @@ class Agent():
     def start_task(self) : #method
         # System setup (scenario and task context)
         start_task_system_prompt = f"""
-        Now that you have completed your individual ranking, it is time to collaborate.
+        {start_task_system_prompt_message1}
         Your name and personality profile remain: {self.name}, {self.traits}.
-        The task introduction remains: {introduction}.
-        The items remain: {items}.
-        You can choose to reply immediately or wait for someone else to reply. 
-        If you choose to wait for someone else to reply, please do not reply anything.
-        """
-    
+        {start_task_system_prompt_message2}
+        """    
         # User instructions (collaborative task and guidelines)
-        start_task_user_prompt = f"""
-        Now you move on to the collaborative task with the following instructions: {instruction_collaborative}.
-        For this discussion, use these guidelines for collaboration: {guidelines}.
-        Here is a resume of the discussion so far: "{printed_outputs}".
-        """
-
+        start_task_user_prompt = start_task_user_prompt_message
         messages = [
             {'role': 'system', 'content': start_task_system_prompt},
             {'role': 'user', 'content': start_task_user_prompt}]
         try:
             output = self.get_output_from_chatgpt(messages)  # Get messages from agent
+            printed_outputs.append([output_capture.getvalue().strip()])  # Append the captured output to the list
+            output_capture.truncate(0)  #Reset the output capture for the next print. Clear the StringIO object
+            output_capture.seek(0)  # Move to the start of the StringIO object
             sys.stdout = sys.__stdout__  # Reset stdout to its default value
         except Exception as e:
             print(f"{e}\nProgram paused . Retrying after 60 s ...")
@@ -259,24 +390,22 @@ class Agent():
         global i
         # System setup (discussion context)
         interactive_system_prompt = f"""
-        Continue the collaborative ranking task discussion based on the previous context.
         Your name and personality profile remain: {self.name}, {self.traits}.
-        The task introduction remains: {introduction}.
-        The items remain: {items}.
-        You can choose to reply immediately or wait for someone else to reply. 
-        If you choose to wait for someone else to reply, please do not reply anything.
+        {interactive_system_prompt_message}
+        Here is a resume of the discussion so far: "{interactive_task_outputs}".        
         """
-
         # User instructions (discussion guidelines)
-        interactive_user_prompt = f"""
-        Here is a resume of the discussion so far: "{printed_outputs}".       
-        """
+        interactive_user_prompt = interactive_user_prompt_message
         messages = [
             {'role': 'system', 'content': interactive_system_prompt},
             {'role': 'user', 'content': interactive_user_prompt}
         ]
         try:
             output = self.get_output_from_chatgpt(messages)  # Get messages from agent
+            printed_outputs.append([output_capture.getvalue().strip()])  # Append the captured output to the list
+            interactive_task_outputs.append([output_capture.getvalue().strip()])  # Append the captured output to the list
+            output_capture.truncate(0)  #Reset the output capture for the next print. Clear the StringIO object
+            output_capture.seek(0)  # Move to the start of the StringIO object
             sys.stdout = sys.__stdout__  # Reset stdout to its default value
         except Exception as e:
             print(f"{e}\nProgram paused . Retrying after 60 s ...")
@@ -286,65 +415,55 @@ class Agent():
         sys.stdout = output_capture  # Redirect stdout to the StringIO object
         if output is not None: 
             print(f"{self.name}s response: {output}") #Prints answer
-            final_phrase = "This is our final list:"
-            if final_phrase in output:
-                print(f"This is the groups final list: {output.split(final_phrase)[1].split(',')}") #Prints answer
-                print("Terminating as task finished.")
-                i = 100
+            #final_phrase = "This is our final list:"
+            #if final_phrase in output:
+            #    print(f"This is the groups final list: {output.split(final_phrase)[1].split(',')}") #Prints answer
+            #    print("Terminating as task finished.")
+            #saved_outputs.append(output.split(final_phrase)[1].split(','))
+                #i = 100
         i = i + 1
         sys.stdout = sys.__stdout__  # Reset stdout to its default value
 
 print("Breakpoint: class Agent setup done")
 
+#------------------------------ 
 # Defining the world class
+#------------------------------
 class World():
     def __init__(self): #constructor
         self.agent_list = []
-        self.agent_names = []
         global i
-    def run_once(self):
-        # Creating file 
+    def run_once(self):        
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(f"run_{current_time}.csv")        
+        filename = os.path.join(f"run_{current_time}.csv")    # Creating file     
         for t in range(TEAM_SIZE):
             this_agent = Agent()
             this_agent.name = this_agent.name+f"_{t+1}"
             self.agent_list.append(this_agent)
-            self.agent_names.append(this_agent.name)
-            self.agent_names.append(this_agent.ranking)
-        sys.stdout = output_capture  # Redirect stdout to the StringIO object
-        print(f"Simulation with personalities: {self.agent_names}.")
-        sys.stdout = sys.__stdout__  # Reset stdout to its default value
         for agent in self.agent_list:
-            agent.instructions()  # Get messages from agent
-            printed_outputs.append([output_capture.getvalue().strip()])  # Append the captured output to the list
-            printed_outputs.append([agent.ranking])
-            # Reset the output capture for the next print
-            output_capture.truncate(0)  # Clear the StringIO object
-            output_capture.seek(0)  # Move to the start of the StringIO object
-        print("done with instructions")
+            agent.instructions()  # Get messages from agent            
+            saved_outputs.append([agent.name])
+            saved_outputs.append([agent.ranking])
+        print("Breakpoint:done with instructions")
         for agent in self.agent_list:
-            agent.start_task()  # Get messages from agent
-            printed_outputs.append([output_capture.getvalue().strip()])  # Append the captured output to the list
-            # Reset the output capture for the next print
-            output_capture.truncate(0)  # Clear the StringIO object
-            output_capture.seek(0)  # Move to the start of the StringIO object   
-        print("done with start_task")
+            agent.start_task()  # Get messages from agent  
+        print("Breakpoint: done with start_task")
         while i<20:
             for agent in self.agent_list:      
                 print(f"Starting interactive_task no. {i+1}")
                 agent.interactive_task()  # Get messages from agent
-                printed_outputs.append([output_capture.getvalue().strip()])  # Append the captured output to the list
-                # Reset the output capture for the next print
-                output_capture.truncate(0)  # Clear the StringIO object
-                output_capture.seek(0)  # Move to the start of the StringIO object
                 if i > 20:
                     print("Terminating as they agreed on list")
                     return  # Use return to exit the function if i > 10
         root = os.getcwd()
-        csv_path = root+ '\\' +output_directory+ '\\'  +filename
-        df_outputs = pd.DataFrame(printed_outputs)  # Create DataFrame
-        df_outputs.to_csv(csv_path, index=False)  # Save DataFrame to CSV
+
+        csv_path_outputs = root+ '\\' +output_directory_conversation+ '\\'  +filename
+        df_conversation = pd.DataFrame(printed_outputs)  # Create DataFrame
+        df_conversation.to_csv(csv_path_outputs, index=False)  # Save DataFrame to CSV
+
+        csv_path_saved = root+ '\\' +output_directory_saved+ '\\'  +filename
+        df_saved = pd.DataFrame(saved_outputs)  # Create DataFrame
+        df_saved.to_csv(csv_path_saved, index=False)  # Save DataFrame to CSV
         
          
     def run_many_times(self):
@@ -364,14 +483,10 @@ class World():
 
 print("Breakpoint: class World setup done")
 
-#"""## Running simulations"""
+#------------------------------ 
+# Running simulations
+#------------------------------
 model = World()
 model.run_once()
 
 print("Model run complete.")
-
-
-
-
-
-
