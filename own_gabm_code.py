@@ -111,19 +111,16 @@ Communicate clearly and persuasively: if you believe an item should be ranked hi
 Aim for a collaborative and respectful conversation. The group decision is finalized when all members agree on a ranked list of items."""
 #If you choose to wait for someone else to reply, please just reply 'thinking...' and wait for your next turn.
 
-# Define the system message (personality and scenario setup)
 instruct_system_prompt_message = f"""
 Please use this personality profile to guide your approach to the task.
-You do nothave specialized knowledge about survival in a desert.
+You do not have specialized knowledge about survival in a desert.
 The task has the following introduction: {introduction}.
 The items available are: {items}.
 """  
-# Define the user message (individual ranking instructions)
 instruct_user_prompt_message = f"""
 First, you need to complete the individual task, with the following instructions: {instruction_individual}.
 When you have completed this task, wait for new instructions.
 """
-# System setup (scenario and task context)
 start_task_system_prompt_message1 = f"""
 Now that you have completed your individual ranking, it is time to collaborate. 
 You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
@@ -135,14 +132,10 @@ Please use this personality profile to guide your behavior, communication style,
 The task introduction remains: {introduction}.
 The items remain: {items}.
 """ 
-
-# User instructions (collaborative task and guidelines)
 start_task_user_prompt_message = f"""
 Now you move on to the collaborative task with the following instructions: {instruction_collaborative}.
 If you understand these instructions, please state 'I understand' and wait for further instructions."
 """
-
-# System setup (discussion context)
 interactive_system_prompt_message = f"""
 Please use this personality profile to guide your behavior, communication style, and approach to the task.
 You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
@@ -151,7 +144,6 @@ For this discussion, use these guidelines for collaboration: {guidelines}.
 The task introduction remains: {introduction}.
 The items remain: {items}. 
 """
- # User instructions (discussion guidelines)
 interactive_user_prompt_message = f"""
 Continue the collaborative ranking task discussion based on the previous context.
 Still, use your personality profile to guide your behavior, communication style, and approach to the task.        
@@ -175,93 +167,7 @@ sys.stdout = sys.__stdout__  # Reset stdout to its default value
 
 print("Breakpoint: setup done")
 
-# --------------------------------------------------------------
-# Create assistants and threads
-# --------------------------------------------------------------
 
-# Create assistants
-def create_assistant():
-    assistant = openai.beta.assistants.create(
-        name="T1",
-        instructions="You are named X.",
-        tools=[{"type": "code_interpreter"}], #Could also be retrieval
-        model="gpt-4o-mini",
-        #file_ids=[file.id],
-    )
-    return assistant
-
-assistant = create_assistant()
-
-# Thread management
-def check_if_thread_exists(wa_id):
-    with shelve.open("threads_db") as threads_shelf:
-        return threads_shelf.get(wa_id, None)
-
-def store_thread(wa_id, thread_id):
-    with shelve.open("threads_db", writeback=True) as threads_shelf:
-        threads_shelf[wa_id] = thread_id
-
-# Generate response
-def generate_response(message_body, wa_id, name):
-    # Check if there is already a thread_id for the wa_id
-    thread_id = check_if_thread_exists(wa_id)
-
-    # If a thread doesn't exist, create one and store it
-    if thread_id is None:
-        print(f"Creating new thread for {name} with wa_id {wa_id}")
-        thread = openai.beta.threads.create()
-        store_thread(wa_id, thread.id)
-        thread_id = thread.id
-
-    # Otherwise, retrieve the existing thread
-    else:
-        print(f"Retrieving existing thread for {name} with wa_id {wa_id}")
-        thread = openai.beta.threads.retrieve(thread_id)
-
-    # Add message to thread
-    message = openai.beta.threads.messages.create(
-        thread_id=thread_id,
-        role="user",
-        content=message_body,
-    )
-
-    # Run the assistant and get the new message
-    new_message = run_assistant(thread)
-    print(f"To {name}:", new_message)
-    return new_message
-
-# Run assistant
-def run_assistant(thread):
-    # Retrieve the Assistant
-    assistant = openai.beta.assistants.retrieve("asst_vRY0odFSSoUewAfNa0nrh3tQ")
-
-    # Run the assistant
-    run = openai.beta.threads.runs.create(
-        thread_id=thread.id,
-        assistant_id=assistant.id,
-        instructions="..."
-    )
-
-    # Wait for completion
-    while run.status != "completed":
-        # Be nice to the API
-        time.sleep(0.5)
-        run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-
-    # Retrieve the Messages
-    messages = openai.beta.threads.messages.list(thread_id=thread.id)
-    print(messages)
-    new_message = messages.data[0].content #maybe add: [0].text.value
-    print(f"Generated message: {new_message}")
-    return new_message
-
-# Test assistant
-#new_message = generate_response("What's the check in time?", "123", "John")
-#new_message = generate_response("What's the pin for the lockbox?", "456", "Sarah")
-#new_message = generate_response("What was my previous question?", "123", "John")
-#new_message = generate_response("What was my previous question?", "456", "Sarah")
-
-print("Breakpoint: Creating assistans and messages done")
 
 #------------------------------
 # Defining the agent class  
@@ -426,24 +332,105 @@ class Agent():
 
 print("Breakpoint: class Agent setup done")
 
+# --------------------------------------------------------------
+# Create assistant methods
+# --------------------------------------------------------------
+class Assistant():
+    # Create assistant
+    def create_assistant(self, Agent):
+        assistant = openai.beta.assistants.create(
+            name=Agent.name,
+            instructions= "Please wait for further instructions.",
+            tools=[{"type": "code_interpreter"}], #Could also be retrieval
+            model="gpt-4o-mini",
+            #file_ids=[file.id],
+        )
+        return assistant
+    
+    # Thread management
+    def check_if_thread_exists(self, Agent):
+        with shelve.open("threads_database") as threads_shelf: #Checks if there's a thread database for the agent
+            return threads_shelf.get(Agent.name, None) #If exists, it returns the value stored(thread_id), otherwise it returns None
+
+    def store_thread(self, Agent, thread_id):
+        with shelve.open("threads_database", writeback=True) as threads_shelf:
+            threads_shelf[Agent.name] = thread_id
+
+    def get_thread_id(self, Agent):    
+        thread_id = self.check_if_thread_exists( Agent) # Check if there is already a thread_id for the wa_id
+        if thread_id is None: # If a thread doesn't exist, create one and store it
+            print(f"Creating new thread for {Agent.name}.")
+            thread = openai.beta.threads.create()
+            self.store_thread(Agent.name, thread.id)
+            thread_id = thread.id        
+        else: # Otherwise, retrieve the existing thread
+            print(f"Retrieving existing thread for {Agent.name}.")
+            thread = openai.beta.threads.retrieve(Agent.name) 
+    # Generate response
+    def input_message(self, thread_id, prompt):
+        message = openai.beta.threads.messages.create( # Messages as input
+            thread_id=thread_id,
+            role="user",
+            content=prompt,
+        )  
+    # Run assistant
+    def run_assistant(self, Agent, thread_id, prompt):
+        #assistant = openai.beta.assistants.retrieve(Agent.name) # Retrieve the Assistant
+        run = openai.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=Agent.name,
+            instructions=prompt
+        )     
+        # Retrieve the Messages
+        if run.status == "completed":
+            messages = openai.beta.threads.messages.list(thread_id=thread_id)
+            return messages
+        else:
+            print(run.status)
+            #new_message = messages.data[0].content[0] #maybe add: .text.value
+            #print(f"Generated message: {new_message}")
+            #return new_message
+            # Wait for completion
+            #while run.status != "completed":
+                # Be nice to the API
+            #    time.sleep(0.5)
+            #    run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+    
+# Test assistant
+#new_message = generate_response("What's the check in time?", "123", "John")
+#new_message = generate_response("What's the pin for the lockbox?", "456", "Sarah")
+#new_message = generate_response("What was my previous question?", "123", "John")
+#new_message = generate_response("What was my previous question?", "456", "Sarah")
+
+print("Breakpoint: class Assistant setup done")
+
 #------------------------------ 
 # Defining the world class
 #------------------------------
 class World():
     def __init__(self): #constructor
         self.agent_list = []
+        self.assistants = {}  # Create a dictionary to store assistants
         global i
     def run_once(self):        
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(f"run_{current_time}.csv")    # Creating file     
+        filename = os.path.join(f"run_{current_time}.csv")    # Creating file             
         for t in range(TEAM_SIZE):
             this_agent = Agent()
             this_agent.name = this_agent.name+f"_{t+1}"
-            self.agent_list.append(this_agent)
+            self.agent_list.append(this_agent)                       
         for agent in self.agent_list:
-            agent.instructions()  # Get messages from agent            
-            saved_outputs.append([agent.name])
-            saved_outputs.append([agent.ranking])
+            this_assistant = Assistant()
+            self.assistants[this_agent.name] = this_assistant.create_assistant(agent)  #create assistant for agent       
+            saved_outputs.append(f"Name: {[agent.name]}")
+            saved_outputs.append(f"Assistant_id: {[self.assistants[this_agent.name].id]}")
+        print("Breakpoint:done with creating assistants")
+        for agent in self.agent_list:
+            agent.instructions()  # Get messages from agent  
+            saved_outputs.append(f"Ranking: {[agent.ranking]}")
+        #for assistant in self.assistants:
+            #assistant.input_message(thread_id, prompt)
+            #output = assistant.run_assistant(Agent, thread_id, prompt)
         print("Breakpoint:done with instructions")
         for agent in self.agent_list:
             agent.start_task()  # Get messages from agent  
@@ -455,6 +442,7 @@ class World():
                 if i > 20:
                     print("Terminating as they agreed on list")
                     return  # Use return to exit the function if i > 10
+        #Remember to delete assistants
         root = os.getcwd()
 
         csv_path_outputs = root+ '\\' +output_directory_conversation+ '\\'  +filename
