@@ -20,11 +20,15 @@ import pandas as pd
 #------------------------------
 
 # Constants
-TEAM_SIZE = 3  # Adjust as necessary
-no_simulations = 10
-turn_takings = 5
-temperature = 0.5
-defined_model = "gpt-4o-mini"
+TEAM_SIZE = 3  
+no_simulations = 2
+turn_takings = 25 # Adjust as necessary
+temperature = 0.5 # Adjust as necessary
+defined_model = "gpt-4o-mini" # Adjust as necessary
+
+#Capturing print statements
+conversation_outputs = [] # Initialize a list to store individual outputs
+saved_outputs = []
 
 # OpenAI API Key
 openai_api_key = os.getenv('OPENAI_API_KEY')  # Use environment variable
@@ -54,14 +58,6 @@ if not os.path.exists(output_directory_conversation):
 output_directory_saved = "output_files_saved"     
 if not os.path.exists(output_directory_saved):
     os.makedirs(output_directory_saved)
-
-#Capturing print statements
-output_capture = io.StringIO()  # Create a StringIO object to capture output
-conversation_outputs = [] # Initialize a list to store individual outputs
-saved_outputs = []
-interactive_task_outputs = []
-sys.stdout = output_capture  # Redirect stdout to the StringIO object
-sys.stdout = sys.__stdout__  # Reset stdout to its default value
 
 #Agents and assistants
 assistants = {}
@@ -143,10 +139,8 @@ class Agent():
         
     def assign_ranking(self, output):
         self.ranking = []
-        self.ranking.append(output) #.split(','))
-        if len(self.ranking) != 15: # Ensure we have exactly 15 elements where elements are equal to columns
-            note = print(f"Warning: {self.name}'s ranking does not contain exactly 15 items.")
-            saved_outputs.append(note)
+        self.ranking.append(output)
+        saved_outputs.append(f"Agent {self.name}'s ranking: {self.ranking}")
 
     def instructions_system(self):
         return f"""
@@ -199,7 +193,7 @@ class Agent():
         return f"""
         Continue the collaborative ranking task discussion based on the previous context. Be aware that you have a maximum of {turn_takings} replies all together.
         Still, use your personality profile to guide your behavior, communication style, and approach to the task. 
-        Desired output: when you have decided on a list, please state ‘This is our final list’ followed by the items in ranked order separated by commas, and end with the statement: 'ranking_complete'. 
+        Desired output: when you have decided on a list, please state ‘This is our final list:’ followed by the items in ranked order separated by commas, and end with the statement: 'ranking_complete.'. 
         If there have been {turn_takings} replies in the discussion, and you still haven’t reached consensus on a finalized list, please state ‘Consensus not reached.’ and stop conversing.  
         """
 
@@ -248,10 +242,11 @@ class Assistant():
                 thread_id=self.thread.id,
                 order="desc"
             )
-            self.message_text = messages.data[0].content
-            return self.message_text
+            self.message_text = messages.data[0].content[0].__getattribute__('text').__getattribute__('value') 
+            self.message_text= str( self.message_text)
+            return self.message_text 
         else:
-            print(f"""{self.assistant.name} is creating output message. Status: {run.status}""")
+            print(f"{self.assistant.name} is creating output message. Status: {run.status}")
 
     def delete_assistant(self):
         client.beta.assistants.delete(self.assistant.id)
@@ -288,10 +283,8 @@ class World():
         
         for i in range(TEAM_SIZE):
             agent = self.group_agents[i]
-            assistant = self.group_assistants[i]
-            saved_outputs.append(f"""Name: {agent.get_agent_name()}""")
-            saved_outputs.append(f"""Assistant: {assistant.get_assistant_id()}""")  
-        print(f"""Breakpoint: Group created with the following agents: {self.group_agents[0].name}, {self.group_agents[1].name}, and {self.group_agents[2].name}""")
+            saved_outputs.append(f"Name: {agent.get_agent_name()}") 
+        print(f"Breakpoint: Group created with the following agents: {self.group_agents[0].name}, {self.group_agents[1].name}, and {self.group_agents[2].name}")
 
     def run_once(self):        
         print("Starting first part: instructions")
@@ -299,14 +292,11 @@ class World():
         for i in range(TEAM_SIZE): #first part
             assistant = self.group_assistants[i]
             agent = self.group_agents[i]
-            print(f"""Sending message number {i+1}""")
+            print(f"Assigning ranking number {i+1}")
             assistant.message(agent.instructions_system())
-            print(f"""Doing run number {i+1}""")
             output = assistant.run_assistant(agent.instructions_user())
-            conversation_outputs.append(f"""Agent {agent.name} has responded: {output}""")
-            print(f"""Assigning ranking number {i+1}""")
+            conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
             agent.assign_ranking(output)
-            saved_outputs.append(f"""Ranking for agent {i+1}: {agent.ranking}""")
         print("Breakpoint: done with instructions")
 
         print("Starting second part: start_task")
@@ -316,7 +306,7 @@ class World():
             agent = self.group_agents[i]
             assistant.message(agent.start_task_system())
             output = assistant.run_assistant(agent.start_task_user())
-            conversation_outputs.append(f"""Agent {agent.name} has responded: {output}""")
+            conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
         print("Breakpoint: done with start_task")
         
         output = None
@@ -333,12 +323,24 @@ class World():
             assistant_other2 = self.group_assistants[number[i+2]]
             agent = self.group_agents[number[i]]
             assistant.message(agent.interactive_system())
-            output = assistant.run_assistant(agent.interactive_user())
-            final_output=(f"""Agent {agent.name} has responded: {output}""")
-            conversation_outputs.append(final_output)
+            output = assistant.run_assistant(agent.interactive_user())            
+            final_output=(f"Agent {agent.name} has responded: {output}")
+            conversation_outputs.append(f"(Turn {i+1}) {final_output}")
+            if output is not None and isinstance(output, str):
+                if "ranking_complete" in output:
+                    start = output.find("This is our final list")
+                    end = output.find("ranking_complete.")
+                    final_list = output[start:end]
+                    saved_outputs.append(f"The groups final list: {final_list}")
+                    saved_outputs.append(f"Turntakings: {i+1}.")
+                    conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
+                    break            
             assistant_other1.message(final_output)
             assistant_other2.message(final_output)
             i+=1
+        if i == turn_takings:
+            saved_outputs.append(f"Note: Task finished as concensus was not reached within {turn_takings} turntakings.")
+            conversation_outputs.append(f"Note: Task finished as concensus was not reached within {turn_takings} turntakings.")
         print("Breakpoint: done with interactive_task")
 
     def delete_assistants(self):
@@ -365,10 +367,14 @@ class World():
 #------------------------------ 
 # Running simulations
 #------------------------------
-model = World()
-model.create_group()
-model.run_once()
-model.save_outputs()
-model.delete_assistants()    
-
-print("Model run complete.")
+for i in range(no_simulations):
+    print(f"Starting model run {i+1} of {no_simulations}.")
+    conversation_outputs = [] # resetting output documents
+    saved_outputs = []
+    saved_outputs.append(f"Simulation no.: {i+1}.")
+    model = World()
+    model.create_group()
+    model.run_once()
+    model.save_outputs()
+    model.delete_assistants()
+    print(f"Model run {i+1} of {no_simulations} complete.")    
