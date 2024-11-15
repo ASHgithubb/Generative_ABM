@@ -23,7 +23,7 @@ import pandas as pd
 TEAM_SIZE = 3  
 no_simulations = 2
 turn_takings = 25 # Adjust as necessary
-temperature = 0.5 # Adjust as necessary
+temperature = 1 # Adjust as necessary
 defined_model = "gpt-4o-mini" # Adjust as necessary
 
 #Capturing print statements
@@ -40,7 +40,7 @@ else:
     try:
     # Make a simple API call to check connectivity
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": "Hello!"}]
         )
         print("API is reachable. Response:", response)
@@ -62,7 +62,7 @@ if not os.path.exists(output_directory_saved):
 #Agents and assistants
 assistants = {}
 agents = {}
-agent_names = ["High_stability", "High_plasticity", "High_both", "Low_stability", "Low_plasticity", "Low_both"]
+agent_names = ["High_neuro", "High_extra", "High_open", "High_agree", "High_consc", "Low_neuro", "Low_extra", "Low_open", "Low_agree", "Low_consc", "Basic"]
 
 # Personality trait descriptions 
 high_neuro = "You easily feel panic, often doubt things, feel vulnerable to threats, get stressed quickly, fear the worst, and often worry. You seek to mitigate potential risks."
@@ -77,7 +77,7 @@ high_open = "You have a vivid imagination, elevate conversations, enjoy new idea
 low_open = "You prefer practical over abstract ideas, rarely seek deeper meaning, and have difficulty with theoretical discussions."
 base_open = "You have a moderate curiosity and interest in new ideas, but you also appreciate familiar routines and practical approaches. You’re open to some exploration and abstract thought, though you refrain from actively seeking novelty or deep theoretical discussions."
 
-high_agree = "You have a kind word for everyone, assume good intentions, are very cooperative, respect others, trust people, and treat everyone equally."
+high_agree = "You have a kind word for everyone, assume good intentions in others, are very cooperative, respect others, trust people, and treat everyone equally."
 low_agree = "You speak directly, hold grudges, feel superior, and often contradict others."
 base_agree = "You are generally cooperative and considerate but assertive when needed. You trust others to a reasonable extent and value harmony but are not afraid to speak up when necessary."
 
@@ -86,28 +86,34 @@ low_consc = "You struggle to focus, do just enough to get by, lose interest quic
 base_consc = "You are reasonably organized and disciplined. You follow through on tasks and strive for accuracy, although you can be flexible when necessary and may occasionally allow small details to slide in favor of efficiency."
 
 #Personality types 
-High_stability = high_consc + high_agree + low_neuro + base_extra + base_open
-High_plasticity = base_consc + base_agree + base_neuro + high_extra + high_open
-High_both = high_consc + high_agree + low_neuro + high_extra + high_open
-Low_stability = low_consc + low_agree + high_neuro + base_extra + base_open
-Low_plasticity = base_consc + base_agree + base_neuro + low_extra + low_open
-Low_both = low_consc + low_agree + high_neuro + low_extra + low_open
+High_extra = base_consc + base_agree + base_neuro + high_extra + base_open
+High_neuro = base_consc + base_agree + high_neuro + base_extra + base_open
+High_open = base_consc + base_agree + base_neuro + base_extra + high_open
+High_agree = base_consc + high_agree + base_neuro + base_extra + base_open
+High_consc = high_consc + base_agree + base_neuro + base_extra + base_open
+Low_extra = base_consc + base_agree + base_neuro + low_extra + base_open
+Low_neuro = base_consc + base_agree + low_neuro + base_extra + base_open
+Low_open = base_consc + base_agree + base_neuro + base_extra + low_open
+Low_agree = base_consc + low_agree + base_neuro + base_extra + base_open
+Low_consc = low_consc + base_agree + base_neuro + base_extra + base_open
+
 Basic = base_consc + base_agree + base_neuro + base_extra + base_open
 
 #Prompts
 introduction = f"""Imagine you have crash-landed in the Atacama Desert in mid-July. 
 It's around 10:00 am, and the temperature will reach 110°F (43°C), but at ground level, it will feel like 130°F (54°C). 
-Your group of five non-injured survivors has salvaged 15 items from the wreckage. 
+Your group of {TEAM_SIZE} non-injured survivors has salvaged 15 items from the wreckage. 
 Survival will depend on making the right choices. The desert is vast, and rescue is uncertain. 
 Every item’s utility could be the difference between life and death."""
 
 items = f"""Torch with 4 battery-cells, Folding knife, Air map of the area, Plastic raincoat (large size), Magnetic compass, First-aid kit, 45 calibre pistol (loaded), Parachute (red & white), Bottle of 1000 salt tablets, 2 litres of water per person, A book entitled ‘Desert Animals That Can Be Eaten’, Sunglasses (for everyone), 2 litres of 180 proof liquor, Overcoat (for everyone), A cosmetic mirror."""
 
-guidelines = f"""You can choose to reply immediately or wait for someone else to reply.  
-Listen actively to your coworkers, considering their reasoning and respecting diverse perspectives. 
-Stay focused on the survival task, and avoid off-topic discussions. You have {turn_takings} turn-takings in total to reach consensus.
-Communicate clearly and persuasively: if you believe an item should be ranked higher or lower, according to you individual ranking explain why, considering survival priorities in the desert environment. 
-Aim for a collaborative and respectful conversation. The group decision is finalized when all members agree on a ranked list of items."""
+guidelines = f"""
+- **Active Listening**: Take turns listening actively to your teammates, understanding their arguments, and respecting their distinct perspectives.
+- **Focus**: Please stay on topic and avoid irrelevant conversations. Your goal is staying alive, each choice counts.
+- **Consensus Decision**: You have {turn_takings} combined turn-takings to reach a consensus on the ranking. Ensure that all team members understand and compromise on the final order.
+- **Clear Communication**: While discussing the utility of each item, provide reasoning for your choices, especially where you think an item should move up or down the ranking. Ground your arguments in survival priorities unique to the conditions of the desert.
+"""
 #If you choose to wait for someone else to reply, please just reply 'thinking...' and wait for your next turn.
 
 print("Breakpoint: setup done")
@@ -119,18 +125,26 @@ print("Breakpoint: setup done")
 class Agent():
     def __init__(self, agent_name): #constructor
         self.name = agent_name
-        if self.name == "High_stability":
-            self.traits = High_stability
-        if self.name == "High_plasticity":
-            self.traits = High_plasticity
-        if self.name == "High_both":
-            self.traits = High_both
-        if self.name == "Low_stability":
-            self.traits = Low_stability
-        if self.name == "Low_plasticity":
-            self.traits = Low_plasticity
-        if self.name == "Low_both":
-            self.traits = Low_both
+        if self.name == "High_extra":
+            self.traits = High_extra
+        if self.name == "High_neuro":
+            self.traits = High_neuro
+        if self.name == "High_open":
+            self.traits = High_open
+        if self.name == "High_agree":
+            self.traits = High_agree
+        if self.name == "High_consc":
+            self.traits = High_consc
+        if self.name == "Low_extra":
+            self.traits = Low_extra
+        if self.name == "Low_neuro":
+            self.traits = Low_neuro
+        if self.name == "Low_open":
+            self.traits = Low_open
+        if self.name == "Low_agree":
+            self.traits = Low_agree
+        if self.name == "Low_consc":
+            self.traits = Low_consc
         if self.name == "Basic":
             self.traits = Basic        
 
@@ -146,39 +160,36 @@ class Agent():
         return f"""
         Your name is {self.name}, and you have the following personality profile: {self.traits}.
         Please use this personality profile to guide your approach to the task.
-        You do not have specialized knowledge about survival in a desert.
         The task has the following introduction: {introduction}.
         The items available are: {items}.
+        You do not have specialized knowledge about survival in a desert.
         """
 
     def instructions_user(self):
         return f"""
-        First, you need to complete the individual task, with the following instructions: 
-        Using your assigned personality traits, individually rank the items in order of importance for the team’s survival, where ‘1’ is the most crucial, and ‘15’ is the least. 
+        Use your assigned personality traits to individually rank the salvaged items in order of importance for the team’s survival, with 1 being the most crucial, and 15 is the least. 
         Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
-        Complete the task without any input from your co-workers. 
-        Desired output: The items in ranked order separated by commas, and end with the statement: 'ranking_complete'.
+        Complete the task without any input from your co-workers. Refrain from stating anything else than the desired output.
+        #Output format: A ranked list of items separated by commas, ending with the statement 'ranking_complete'. An example of the format of a list is: " ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"
+
         """
     def start_task_system(self):
         return f"""
-        Now that you have completed your individual ranking, it is time to collaborate. 
-        You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
+        You work in a company, and today you and your {TEAM_SIZE} co-workers are tasked to engage in a team-building task unrelated to your work.
         None of you have specialized knowledge about survival in a desert.
         For this discussion, use these guidelines for collaboration: {guidelines}.
         Your name and personality profile remain: {self.name}, {self.traits}.
-        Please use this personality profile to guide your behavior, communication style, and approach to the task.
+        Use this personality profile to guide your behavior, communication style, and approach to the task.
         The task introduction remains: {introduction}.
         The items remain: {items}.        """
 
     def start_task_user(self):
         return f"""
-        Now, you move on to the collaborative task with the following instructions: 
-        You work in a company, and today you and your five co-workers are tasked to engage in a team-building task unrelated to your work.
-        None of you have specialized knowledge about survival in a desert.
-        Your goal as a team is now to collaboratively RANK the 15 items in order of importance for survival of the team, with ‘1’ being the most important and ‘15’ the least. 
+        Your goal as a team is to collaboratively RANK the 15 items in order of importance for survival of the team, with 1 being the most important and 15 the least. 
         Work together to discuss and finalize a ranked list of the 15 items. This may involve negotiating and persuading others to consider your reasoning. 
+        Eventually, create the final team ranking based on group agreement, ensuring that everyone involved is satisfied with each item's placement.
         Your decision should still focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item.
-        Desired output: please state 'I understand' and will wait for further instructions."    
+        # Output format: please state 'I understand' and will wait for further instructions."    
         """
 
     def interactive_system(self):
@@ -192,9 +203,8 @@ class Agent():
     def interactive_user(self):
         return f"""
         Continue the collaborative ranking task discussion based on the previous context. Be aware that you have a maximum of {turn_takings} replies all together.
-        Still, use your personality profile to guide your behavior, communication style, and approach to the task. 
-        Desired output: when you have decided on a list, please state ‘This is our final list:’ followed by the items in ranked order separated by commas, and end with the statement: 'ranking_complete.'. 
-        If there have been {turn_takings} replies in the discussion, and you still haven’t reached consensus on a finalized list, please state ‘Consensus not reached.’ and stop conversing.  
+        Use your personality profile to guide your behavior, communication style, and approach to the task. 
+        # Output format: When you all agree on a finalized ranking list containing all 15 items, please state "This is our final list" followed by the items in ranked order separated by commas, and end with the statement ‘ranking_complete.’. An example of the format of a list is: "This is our final list: ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"  
         """
 
 print("Breakpoint: class Agent setup done")
@@ -274,7 +284,8 @@ class World():
             new_assistant = Assistant(new_agent.get_agent_name())
             self.group_assistants.append(new_assistant)
         
-        new_personality_agent = Agent(np.random.choice(agent_names))
+        non_basic_agent_names = [name for name in agent_names if name != "Basic"] # Filter out "Basic" from agent_names
+        new_personality_agent = Agent(np.random.choice(non_basic_agent_names))
         new_personality_agent.name = new_personality_agent.name+f"_{TEAM_SIZE}"
         self.group_agents.append(new_personality_agent)
         
@@ -353,7 +364,7 @@ class World():
     def save_outputs(self):
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = os.path.join(f"run_{current_time}.csv")    # Creating file
-        root = os.getcwd()
+        root = "C:\\Users\\Bruger\\Documents\\Cognitive_Science\\fifth_sem\\BACHELOR" #os.getcwd()
 
         csv_path_outputs = root+ '\\' +output_directory_conversation+ '\\'  +filename
         df_conversation = pd.DataFrame(conversation_outputs)  # Create DataFrame
