@@ -21,14 +21,22 @@ import pandas as pd
 
 # Constants
 TEAM_SIZE = 3  
-no_simulations = 2
-turn_takings = 25 # Adjust as necessary
-temperature = 1 # Adjust as necessary
+no_simulations = 2 # Adjust as necessary
+turn_takings = 30 # Adjust as necessary
+temperature = 0.8 # Adjust as necessary
 defined_model = "gpt-4o-mini" # Adjust as necessary
+
+simulation_no = 0
+personality = None
+agent_1_list = None
+agent_2_list = None
+agent_3_list = None
+group_list = None
+turn_takings_count = 0
 
 #Capturing print statements
 conversation_outputs = [] # Initialize a list to store individual outputs
-saved_outputs = []
+final_dataframe = pd.DataFrame()
 
 # OpenAI API Key
 openai_api_key = os.getenv('OPENAI_API_KEY')  # Use environment variable
@@ -65,36 +73,36 @@ agents = {}
 agent_names = ["High_neuro", "High_extra", "High_open", "High_agree", "High_consc", "Low_neuro", "Low_extra", "Low_open", "Low_agree", "Low_consc", "Basic"]
 
 # Personality trait descriptions 
-high_neuro = "You easily feel panic, often doubt things, feel vulnerable to threats, get stressed quickly, fear the worst, and often worry. You seek to mitigate potential risks."
-low_neuro = "You feel confident, are rarely irritated, remain unbothered, seldom get angry, and stay calm under pressure."
-base_neuro = "You generally feel calm and secure but may experience mild stress in challenging situations. You approach potential risks with caution but do not dwell excessively on worst-case scenarios."
+high_neuro = "You panic easily, doubt yourself, fear the worst, and worry often."
+low_neuro = "You stay calm, confident, and unbothered, even under pressure."
+base_neuro = "You’re calm but can feel mild stress; cautious without dwelling on risks."
 
-high_extra = "You are skilled at socializing, captivate people, start conversations easily, enjoy being the center of attention, and cheer people up."
-low_extra = "You prefer to remain in the background, keep quiet, avoid attention, avoid engaging much, and find it difficult to approach others."
-base_extra = "You are comfortable in social settings and enjoy interaction but do not seek the spotlight. You engage in conversation and connect with others, but refrain from dominating the conversations."
+high_extra = "You socialize easily, captivate others, and enjoy attention."
+low_extra = "You stay quiet, avoid attention, and find socializing difficult."
+base_extra = "You interact comfortably but avoid the spotlight."
 
-high_open = "You have a vivid imagination, elevate conversations, enjoy new ideas, and get excited by thinking deeply."
-low_open = "You prefer practical over abstract ideas, rarely seek deeper meaning, and have difficulty with theoretical discussions."
-base_open = "You have a moderate curiosity and interest in new ideas, but you also appreciate familiar routines and practical approaches. You’re open to some exploration and abstract thought, though you refrain from actively seeking novelty or deep theoretical discussions."
+high_open = "You’re very imaginative, love new ideas, and enjoy deep thinking."
+low_open = "You prefer practical ideas and avoid abstract or theoretical discussions."
+base_open = "You balance curiosity with routine and practical thinking."
 
-high_agree = "You have a kind word for everyone, assume good intentions in others, are very cooperative, respect others, trust people, and treat everyone equally."
-low_agree = "You speak directly, hold grudges, feel superior, and often contradict others."
-base_agree = "You are generally cooperative and considerate but assertive when needed. You trust others to a reasonable extent and value harmony but are not afraid to speak up when necessary."
+high_agree = "You trust others, are very cooperate, and treat everyone equally."
+low_agree = "You speak bluntly, hold grudges, and feel superior."
+base_agree = "You’re cooperative but assertive when needed, valuing harmony and fairness."
 
-high_consc = "You carefully consider all factors, pay attention to details, get tasks done immediately, plan thoroughly, and follow through on tasks."
-low_consc = "You struggle to focus, do just enough to get by, lose interest quickly, and often leave tasks unfinished."
-base_consc = "You are reasonably organized and disciplined. You follow through on tasks and strive for accuracy, although you can be flexible when necessary and may occasionally allow small details to slide in favor of efficiency."
+high_consc = "You plan thoroughly, focus on details, and finish tasks on time."
+low_consc = "You struggle with focus, do the minimum, and leave tasks unfinished."
+base_consc = "You’re moderately organized, follow through on tasks, but may occasionally overlook details."
 
 #Personality types 
-High_extra = base_consc + base_agree + base_neuro + high_extra + base_open
-High_neuro = base_consc + base_agree + high_neuro + base_extra + base_open
-High_open = base_consc + base_agree + base_neuro + base_extra + high_open
-High_agree = base_consc + high_agree + base_neuro + base_extra + base_open
+High_extra = high_extra + base_consc + base_agree + base_neuro + base_open
+High_neuro = high_neuro + base_consc + base_agree + base_extra + base_open
+High_open = high_open + base_consc + base_agree + base_neuro + base_extra
+High_agree = high_agree + base_consc + base_neuro + base_extra + base_open
 High_consc = high_consc + base_agree + base_neuro + base_extra + base_open
-Low_extra = base_consc + base_agree + base_neuro + low_extra + base_open
-Low_neuro = base_consc + base_agree + low_neuro + base_extra + base_open
-Low_open = base_consc + base_agree + base_neuro + base_extra + low_open
-Low_agree = base_consc + low_agree + base_neuro + base_extra + base_open
+Low_extra = low_extra + base_consc + base_agree + base_neuro + base_open
+Low_neuro = low_neuro + base_consc + base_agree + base_extra + base_open
+Low_open = low_open + base_consc + base_agree + base_neuro + base_extra
+Low_agree = low_agree + base_consc + base_neuro + base_extra + base_open
 Low_consc = low_consc + base_agree + base_neuro + base_extra + base_open
 
 Basic = base_consc + base_agree + base_neuro + base_extra + base_open
@@ -114,7 +122,6 @@ guidelines = f"""
 - **Consensus Decision**: You have {turn_takings} combined turn-takings to reach a consensus on the ranking. Ensure that all team members understand and compromise on the final order.
 - **Clear Communication**: While discussing the utility of each item, provide reasoning for your choices, especially where you think an item should move up or down the ranking. Ground your arguments in survival priorities unique to the conditions of the desert.
 """
-#If you choose to wait for someone else to reply, please just reply 'thinking...' and wait for your next turn.
 
 print("Breakpoint: setup done")
 
@@ -150,61 +157,60 @@ class Agent():
 
     def get_agent_name(self):
         return self.name
-        
-    def assign_ranking(self, output):
-        self.ranking = []
-        self.ranking.append(output)
-        saved_outputs.append(f"Agent {self.name}'s ranking: {self.ranking}")
+    
+    def get_agent_traits(self):
+        return self.traits
 
-    def instructions_system(self):
+    def instructions_system_basic(self):
         return f"""
-        Your name is {self.name}, and you have the following personality profile: {self.traits}.
-        Please use this personality profile to guide your approach to the task.
-        The task has the following introduction: {introduction}.
-        The items available are: {items}.
-        You do not have specialized knowledge about survival in a desert.
-        """
-
-    def instructions_user(self):
-        return f"""
+        {introduction}
+        The items available are: {items}. 
         Use your assigned personality traits to individually rank the salvaged items in order of importance for the team’s survival, with 1 being the most crucial, and 15 is the least. 
         Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
         Complete the task without any input from your co-workers. Refrain from stating anything else than the desired output.
         #Output format: A ranked list of items separated by commas, ending with the statement 'ranking_complete'. An example of the format of a list is: " ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"
-
         """
+    
+    def instructions_system_personality(self):
+        return f"""
+        {introduction}
+        The items available are: {items}.
+        Use your assigned personality traits, especially the first sentence herin, to individually rank the salvaged items in order of importance for the team’s survival, with 1 being the most crucial, and 15 is the least. 
+        Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
+        Complete the task without any input from your co-workers. Refrain from stating anything else than the desired output.
+        #Output format: A ranked list of items separated by commas, ending with the statement 'ranking_complete'. An example of the format of a list is: " ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"
+        """
+
     def start_task_system(self):
         return f"""
         You work in a company, and today you and your {TEAM_SIZE} co-workers are tasked to engage in a team-building task unrelated to your work.
         None of you have specialized knowledge about survival in a desert.
-        For this discussion, use these guidelines for collaboration: {guidelines}.
-        Your name and personality profile remain: {self.name}, {self.traits}.
-        Use this personality profile to guide your behavior, communication style, and approach to the task.
-        The task introduction remains: {introduction}.
-        The items remain: {items}.        """
-
-    def start_task_user(self):
-        return f"""
-        Your goal as a team is to collaboratively RANK the 15 items in order of importance for survival of the team, with 1 being the most important and 15 the least. 
-        Work together to discuss and finalize a ranked list of the 15 items. This may involve negotiating and persuading others to consider your reasoning. 
+        Your goal is to collaboratively rank the 15 items in order of importance for survival of the team in an extreme desert environment.  
+        The ranking should be made from most critical (1) to least critical (15). 
+        Discuss and negotiate to persuade others to consider your reasoning about the placement of the items. 
+        Your decisions should be rational and focused on maximizing survival potential with regards to the given challenging context.
         Eventually, create the final team ranking based on group agreement, ensuring that everyone involved is satisfied with each item's placement.
         Your decision should still focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item.
-        # Output format: please state 'I understand' and will wait for further instructions."    
         """
 
-    def interactive_system(self):
+    def interactive_system_basic(self):
         return f"""
-        Your name and personality profile remain: {self.name}, {self.traits}.
+        Continue the collaborative ranking task discussion based on the previous context. Be aware that you have a maximum of {turn_takings} replies all of you together.
         The task introduction remains: {introduction}.
         The items remain: {items}.
         These guidelines for collaboration remain: {guidelines}.
-        """
-
-    def interactive_user(self):
-        return f"""
-        Continue the collaborative ranking task discussion based on the previous context. Be aware that you have a maximum of {turn_takings} replies all together.
         Use your personality profile to guide your behavior, communication style, and approach to the task. 
-        # Output format: When you all agree on a finalized ranking list containing all 15 items, please state "This is our final list" followed by the items in ranked order separated by commas, and end with the statement ‘ranking_complete.’. An example of the format of a list is: "This is our final list: ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"  
+        # Output format: When you all agree on a finalized list containing all 15 items, please state "This is our final list:" followed by the items in ranked order separated by commas, and end with the statement ‘ranking_complete.’. An example of the format of a list is: "This is our final list: ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"  
+        """
+    
+    def interactive_system_personality(self):
+        return f"""
+        Continue the collaborative ranking task discussion based on the previous context. Be aware that you have a maximum of {turn_takings} replies all of you together.
+        The task introduction remains: {introduction}.
+        The items remain: {items}.
+        These guidelines for collaboration remain: {guidelines}.
+        Use your personality profile, especially the first sentence herein, to guide your behavior, communication style, and approach to the task. 
+        # Output format: When you all agree on a finalized list containing all 15 items, please state "This is our final list:" followed by the items in ranked order separated by commas, and end with the statement ‘ranking_complete.’. An example of the format of a list is: "This is our final list: ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"  
         """
 
 print("Breakpoint: class Agent setup done")
@@ -214,12 +220,14 @@ print("Breakpoint: class Agent setup done")
 # --------------------------------------------------------------
 
 class Assistant():
-    def __init__(self, agent_name): #constructor
+    def __init__(self, agent_name, agent_traits): #constructor
         self.assistant = client.beta.assistants.create(
             name=agent_name,
             temperature= temperature,
             model= defined_model,
-        )
+            description= f"""Your name is {agent_name}, and you have the following personality profile: {agent_traits}.
+            You do NOT have specialized knowledge about deserts."""
+        )  
         self.thread = self.create_thread()
     
     def get_assistant_id(self):
@@ -276,48 +284,63 @@ class World():
         self.group_assistants = []  # Create a dictionary to store assistants
 
     def create_group(self):
+        #creating the personality agent
+        global personality
+        non_basic_agent_names = [name for name in agent_names if name != "Basic"] # Filter out "Basic" from agent_names
+        new_personality_agent = Agent(np.random.choice(non_basic_agent_names))
+        new_personality_agent.name = new_personality_agent.name+f"_{TEAM_SIZE}"
+        self.group_agents.append(new_personality_agent)
+        personality = new_personality_agent.name
+        
+        new_personality_assistant = Assistant(new_personality_agent.get_agent_name(), new_personality_agent.get_agent_traits())
+        self.group_assistants.append(new_personality_assistant)
+
+        #creating the two basic agents
         for i in range(TEAM_SIZE-1):
             new_agent = Agent("Basic")
             new_agent.name = new_agent.name+f"_{i+1}"
             self.group_agents.append(new_agent)
             
-            new_assistant = Assistant(new_agent.get_agent_name())
+            new_assistant = Assistant(new_agent.get_agent_name(), new_agent.get_agent_traits())
             self.group_assistants.append(new_assistant)
         
-        non_basic_agent_names = [name for name in agent_names if name != "Basic"] # Filter out "Basic" from agent_names
-        new_personality_agent = Agent(np.random.choice(non_basic_agent_names))
-        new_personality_agent.name = new_personality_agent.name+f"_{TEAM_SIZE}"
-        self.group_agents.append(new_personality_agent)
-        
-        new_personality_assistant = Assistant(new_personality_agent.get_agent_name())
-        self.group_assistants.append(new_personality_assistant)
-        
-        for i in range(TEAM_SIZE):
-            agent = self.group_agents[i]
-            saved_outputs.append(f"Name: {agent.get_agent_name()}") 
         print(f"Breakpoint: Group created with the following agents: {self.group_agents[0].name}, {self.group_agents[1].name}, and {self.group_agents[2].name}")
 
     def run_once(self):        
         print("Starting first part: instructions")
         conversation_outputs.append("Starting first part: instructions")
-        for i in range(TEAM_SIZE): #first part
-            assistant = self.group_assistants[i]
-            agent = self.group_agents[i]
-            print(f"Assigning ranking number {i+1}")
-            assistant.message(agent.instructions_system())
-            output = assistant.run_assistant(agent.instructions_user())
+
+        #for personality agent
+        assistant = self.group_assistants[0]
+        agent = self.group_agents[0]
+        print(f"Assigning ranking number {1}")
+        output = assistant.run_assistant(agent.instructions_system_personality())
+        conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
+        global agent_1_list
+        agent_1_list = output
+
+        #for the two basic agents
+        for i in range(TEAM_SIZE-1): #first part
+            assistant = self.group_assistants[i+1]
+            agent = self.group_agents[i+1]
+            print(f"Assigning ranking number {i+2}")
+            output = assistant.run_assistant(agent.instructions_system_basic())
             conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
-            agent.assign_ranking(output)
+            if i == 0:
+                global agent_2_list
+                agent_2_list = output
+            if i == 1:
+                global agent_3_list
+                agent_3_list = output
+
         print("Breakpoint: done with instructions")
 
         print("Starting second part: start_task")
-        conversation_outputs.append("Starting second part: start_task")
+
         for i in range(TEAM_SIZE): #second part
             assistant = self.group_assistants[i]
             agent = self.group_agents[i]
             assistant.message(agent.start_task_system())
-            output = assistant.run_assistant(agent.start_task_user())
-            conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
         print("Breakpoint: done with start_task")
         
         output = None
@@ -327,31 +350,36 @@ class World():
 
         i=0
         while i<turn_takings: #third part
+            global turn_takings_count
+            global group_list
+            turn_takings_count = i+1
             print(f"Starting interactive_task no. {i+1}")
-            number = [0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2] #30 cases
+            number = [0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1,2] #39 cases
             assistant = self.group_assistants[number[i]]
             assistant_other1 = self.group_assistants[number[i+1]]
             assistant_other2 = self.group_assistants[number[i+2]]
             agent = self.group_agents[number[i]]
-            assistant.message(agent.interactive_system())
-            output = assistant.run_assistant(agent.interactive_user())            
+            #for the personality agent
+            if number[i] == 0:
+                output = assistant.run_assistant(agent.interactive_system_personality())            
+            #for the two basic agents
+            else:
+                output = assistant.run_assistant(agent.interactive_system_basic())
             final_output=(f"Agent {agent.name} has responded: {output}")
             conversation_outputs.append(f"(Turn {i+1}) {final_output}")
             if output is not None and isinstance(output, str):
                 if "ranking_complete" in output:
-                    start = output.find("This is our final list")
+                    start = output.find("This is our final list:")
                     end = output.find("ranking_complete.")
-                    final_list = output[start:end]
-                    saved_outputs.append(f"The groups final list: {final_list}")
-                    saved_outputs.append(f"Turntakings: {i+1}.")
+                    group_list = output[start:end]
                     conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
                     break            
             assistant_other1.message(final_output)
             assistant_other2.message(final_output)
             i+=1
         if i == turn_takings:
-            saved_outputs.append(f"Note: Task finished as concensus was not reached within {turn_takings} turntakings.")
             conversation_outputs.append(f"Note: Task finished as concensus was not reached within {turn_takings} turntakings.")
+            group_list = None
         print("Breakpoint: done with interactive_task")
 
     def delete_assistants(self):
@@ -361,31 +389,62 @@ class World():
             assistant.delete_assistant()
         print("Breakpoint: assistants deleted")
 
-    def save_outputs(self):
+    def save_outputs_conversation(self):
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = os.path.join(f"run_{current_time}.csv")    # Creating file
-        root = "C:\\Users\\Bruger\\Documents\\Cognitive_Science\\fifth_sem\\BACHELOR" #os.getcwd()
+        root = os.getcwd()
 
         csv_path_outputs = root+ '\\' +output_directory_conversation+ '\\'  +filename
         df_conversation = pd.DataFrame(conversation_outputs)  # Create DataFrame
         df_conversation.to_csv(csv_path_outputs, index=False)  # Save DataFrame to CSV
 
-        csv_path_saved = root+ '\\' +output_directory_saved+ '\\'  +filename
-        df_saved = pd.DataFrame(saved_outputs)  # Create DataFrame
-        df_saved.to_csv(csv_path_saved, index=False)  # Save DataFrame to CSV
-
+    def save_outputs_final(self):    
+        global final_dataframe
+        global simulation_no
+        global personality
+        global agent_1_list
+        global agent_2_list
+        global agent_3_list
+        global group_list
+        global turn_takings_count
+        list ={
+            "simulation_no.": sim_no,
+            "personality": personality,
+            "agent_1_list": agent_1_list,
+            "agent_2_list": agent_2_list,
+            "agent_3_list": agent_3_list,
+            "group_list": group_list,
+            "turn_takings": turn_takings_count
+            }
+        new_df = pd.DataFrame([list], columns=[
+            "simulation_no.",
+            "personality",
+            "agent_1_list",
+            "agent_2_list",
+            "agent_3_list",
+            "group_list",
+            "turn_takings"
+        ])
+        final_dataframe = pd.concat([final_dataframe, new_df], ignore_index=True)
 
 #------------------------------ 
 # Running simulations
 #------------------------------
 for i in range(no_simulations):
     print(f"Starting model run {i+1} of {no_simulations}.")
+    global sim_no
+    sim_no = i+1
     conversation_outputs = [] # resetting output documents
-    saved_outputs = []
-    saved_outputs.append(f"Simulation no.: {i+1}.")
     model = World()
     model.create_group()
     model.run_once()
-    model.save_outputs()
+    model.save_outputs_conversation()
+    model.save_outputs_final()
     model.delete_assistants()
-    print(f"Model run {i+1} of {no_simulations} complete.")    
+    print(f"Model run {i+1} of {no_simulations} complete.")   
+
+current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+filename = os.path.join(f"run_{current_time}.csv")    # Creating file
+root = os.getcwd()
+csv_path_saved = root+ '\\' +output_directory_saved+ '\\'  +filename
+final_dataframe.to_csv(csv_path_saved, index=False)  # Save DataFrame to CSV 
