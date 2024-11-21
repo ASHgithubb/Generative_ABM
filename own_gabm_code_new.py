@@ -22,9 +22,9 @@ import pandas as pd
 # Constants
 TEAM_SIZE = 3  
 no_simulations = 2 # Adjust as necessary
-turn_takings = 30 # Adjust as necessary
+turn_takings = 20 # Adjust as necessary
 temperature = 0.8 # Adjust as necessary
-defined_model = "gpt-4o-mini" # Adjust as necessary
+defined_model = "gpt-4o" # Adjust as necessary
 
 simulation_no = 0
 personality = None
@@ -48,7 +48,7 @@ else:
     try:
     # Make a simple API call to check connectivity
         response = openai.chat.completions.create(
-            model="gpt-4o-mini",
+            model=defined_model,
             messages=[{"role": "user", "content": "Hello!"}]
         )
         print("API is reachable. Response:", response)
@@ -108,21 +108,24 @@ Low_consc = low_consc + base_agree + base_neuro + base_extra + base_open
 Basic = base_consc + base_agree + base_neuro + base_extra + base_open
 
 #Prompts
-introduction = f"""Imagine you have crash-landed in the Atacama Desert in mid-July. 
-It's around 10:00 am, and the temperature will reach 110°F (43°C), but at ground level, it will feel like 130°F (54°C). 
-Your group of {TEAM_SIZE} non-injured survivors has salvaged 15 items from the wreckage. 
-Survival will depend on making the right choices. The desert is vast, and rescue is uncertain. 
-Every item’s utility could be the difference between life and death."""
-
-items = f"""Torch with 4 battery-cells, Folding knife, Air map of the area, Plastic raincoat (large size), Magnetic compass, First-aid kit, 45 calibre pistol (loaded), Parachute (red & white), Bottle of 1000 salt tablets, 2 litres of water per person, A book entitled ‘Desert Animals That Can Be Eaten’, Sunglasses (for everyone), 2 litres of 180 proof liquor, Overcoat (for everyone), A cosmetic mirror."""
-
-guidelines = f"""
-- **Active Listening**: Take turns listening actively to your teammates, understanding their arguments, and respecting their distinct perspectives.
-- **Focus**: Please stay on topic and avoid irrelevant conversations. Your goal is staying alive, each choice counts.
-- **Consensus Decision**: You have {turn_takings} combined turn-takings to reach a consensus on the ranking. Ensure that all team members understand and compromise on the final order.
-- **Clear Communication**: While discussing the utility of each item, provide reasoning for your choices, especially where you think an item should move up or down the ranking. Ground your arguments in survival priorities unique to the conditions of the desert.
+introduction = f"""
+# Context
+You have crash-landed in the Atacama Desert in mid-July. It's 10:00 am, and temperatures can reach up to 110°F (43°C), with ground-level temperatures feeling like 130°F (54°C). 
+There are {TEAM_SIZE} non-injured survivors in your group, and you have salvaged 15 items from the wreckage. 
+Your survival will depend on making the right choices, and each item's utility could be the difference between life and death. The desert is vast, and rescue is uncertain. 
+The items available to you are: Torch with 4 battery-cells, Folding knife, Air map of the area, Plastic raincoat (large size), Magnetic compass, First-aid kit, 45 calibre pistol (loaded), Parachute (red & white), Bottle of 1000 salt tablets, 2 litres of water per person, A book entitled 'Desert Animals That Can Be Eaten', Sunglasses (for everyone), 2 litres of 180 proof liquor, Overcoat (for everyone), and A cosmetic mirror.
 """
 
+guidelines = f"""
+- **Discussion and Persuasion**: Discuss your individual rankings with others. Provide reasoning for your choices and persuade others where you believe changes should be made.
+- **Adjust Rankings Accordingly**: Refine the ranking through dialogue until everyone reaches an agreement. 
+- **Considerations**:
+    - **Active Listening**: Take turns listening and respecting each other's arguments.
+    - **Consensus Decision-making**: Ensure all team members understand and compromise on the final order.
+    - **Clear Prioritization**: While negotiating each item, justify its survival importance to the group's needs. 
+    - **Effective communication**: Always start discussions by stating reasons before presenting conclusions during the collaborative activity to ensure clarity and effectiveness in reaching a compromise.
+    - **Time limit**: You have a maximum of {turn_takings} replies all of you together to finish the task.
+"""
 print("Breakpoint: setup done")
 
 #------------------------------
@@ -160,57 +163,69 @@ class Agent():
     
     def get_agent_traits(self):
         return self.traits
-
+    
     def instructions_system_basic(self):
         return f"""
         {introduction}
-        The items available are: {items}. 
-        Use your assigned personality traits to individually rank the salvaged items in order of importance for the team’s survival, with 1 being the most crucial, and 15 is the least. 
-        Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
-        Complete the task without any input from your co-workers. Refrain from stating anything else than the desired output.
-        #Output format: A ranked list of items separated by commas, ending with the statement 'ranking_complete'. An example of the format of a list is: " ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"
+        ## Individual Task Instructions
+        Individually, you are required to rank the salvaged items from 1 (most critical) to 15 (least critical) for the team's survival. 
+        Use your assigned personality profile to guide your approach to the task. 
+        The ranking should be logical and based on:
+        - Survival needs considering the desert environment.
+        - Distance from help and potential uses for each item.
+        ### Restrictions
+        - Complete this task independently without any input from teammates.
+        - Refrain from providing any extra commentary; state only the ranking, as in the example below.
+        # Output Format (Individual Task)
+        The output should include a ranked list of items separated by commas, ending with the statement `'ranking_complete'`. For example: ['1. Torch with 4 battery-cells', '2. Folding knife', [...], '15. A cosmetic mirror'] ranking_complete.
+        (Note: Replace "[...]," with the remaining 12 items in ranked order, yielding 15 items in total.)
         """
-    
     def instructions_system_personality(self):
         return f"""
         {introduction}
-        The items available are: {items}.
-        Use your assigned personality traits, especially the first sentence herin, to individually rank the salvaged items in order of importance for the team’s survival, with 1 being the most crucial, and 15 is the least. 
-        Focus on survival needs, the harsh desert environment, distance from help, and each item's potential use. 
-        Complete the task without any input from your co-workers. Refrain from stating anything else than the desired output.
-        #Output format: A ranked list of items separated by commas, ending with the statement 'ranking_complete'. An example of the format of a list is: " ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"
+        ## Individual Task Instructions
+        Individually, you are required to rank the salvaged items from 1 (most critical) to 15 (least critical) for the team's survival. 
+        Use your assigned personality profile — especially focusing on the first sentence mentioned - to guide your approach to the task. 
+        The ranking should be logical and based on:
+        - Survival needs considering the desert environment.
+        - Distance from help and potential uses for each item.
+        ### Restrictions
+        - Complete this task independently without any input from teammates.
+        - Refrain from providing any extra commentary;  state only the ranking, as in the example below.
+        # Output Format (Individual Task)
+        The output should include a ranked list of items separated by commas, ending with the statement `'ranking_complete'`. For example:
+        "['1. Torch with 4 battery-cells', '2. Folding knife', [...], '15. A cosmetic mirror'] ranking_complete."
+        (Note: Replace "[...]," with the remaining 12 items in ranked order, yielding 15 items in total.)
         """
-
     def start_task_system(self):
         return f"""
-        You work in a company, and today you and your {TEAM_SIZE} co-workers are tasked to engage in a team-building task unrelated to your work.
-        None of you have specialized knowledge about survival in a desert.
-        Your goal is to collaboratively rank the 15 items in order of importance for survival of the team in an extreme desert environment.  
-        The ranking should be made from most critical (1) to least critical (15). 
-        Discuss and negotiate to persuade others to consider your reasoning about the placement of the items. 
-        Your decisions should be rational and focused on maximizing survival potential with regards to the given challenging context.
-        Eventually, create the final team ranking based on group agreement, ensuring that everyone involved is satisfied with each item's placement.
-        Your decision should still focus on survival, considering the extreme desert environment, distance from help, and the potential uses of each item.
+        ## Personal Information
+        Your name is {self.name}.
+        ## Collaborative Task Instructions
+        Once the individual lists are completed, you will collaboratively work with {TEAM_SIZE} other team members to finalize a ranked list of the salvaged items.
+        The context remains: {introduction}
+        In this part of the task, your goal is to devise a single ranking, from 1 (most critical) to 15 (least critical), that maximizes your chances for survival in a harsh desert scenario, using insights from all participants.
         """
-
     def interactive_system_basic(self):
         return f"""
-        Continue the collaborative ranking task discussion based on the previous context. Be aware that you have a maximum of {turn_takings} replies all of you together.
-        The task introduction remains: {introduction}.
-        The items remain: {items}.
-        These guidelines for collaboration remain: {guidelines}.
-        Use your personality profile to guide your behavior, communication style, and approach to the task. 
-        # Output format: When you all agree on a finalized list containing all 15 items, please state "This is our final list:" followed by the items in ranked order separated by commas, and end with the statement ‘ranking_complete.’. An example of the format of a list is: "This is our final list: ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"  
+        Continue the collaborative ranking task discussion based on the previous context. 
+        Use your assignedpersonality profile to guide your behavior, communication style, and approach to the task. 
+        ### Guidelines for Collaboration
+        {guidelines}
+        # Output Format (Collaborative Task)
+        Once consensus is reached, and you have a finalized list containing all 15 items, output the statement "This is our final list:" followed by the ranked items (in order) separated by commas, and conclude with "ranking_complete". For example: "This is our final list: ['1. Torch with 4 battery-cells', '2. Folding knife', [...], '15. Cosmetic mirror'] ranking_complete."
+        (Note: Replace "[...]," with the remaining 12 items in ranked order, yielding 15 items in total.)
         """
-    
     def interactive_system_personality(self):
         return f"""
-        Continue the collaborative ranking task discussion based on the previous context. Be aware that you have a maximum of {turn_takings} replies all of you together.
-        The task introduction remains: {introduction}.
-        The items remain: {items}.
-        These guidelines for collaboration remain: {guidelines}.
-        Use your personality profile, especially the first sentence herein, to guide your behavior, communication style, and approach to the task. 
-        # Output format: When you all agree on a finalized list containing all 15 items, please state "This is our final list:" followed by the items in ranked order separated by commas, and end with the statement ‘ranking_complete.’. An example of the format of a list is: "This is our final list: ['1. Torch with 4 battery-cells, 2. Folding knife, 3. Air map of the area, 4. Plastic raincoat (large size), 5. Magnetic compass, 6. First-aid kit, 7. 45 calibre pistol (loaded), 8. Parachute (red & white), 9. Bottle of 1000 salt tablets, 10. 2 litres of water per person, 11. A book entitled ‘Desert Animals That Can Be Eaten’, 12. Sunglasses (for everyone), 13. 2 litres of 180 proof liquor, 14. Overcoat (for everyone), 15. A cosmetic mirror. ranking_complete']"  
+        Continue the collaborative ranking task discussion based on the previous context. 
+        Use your assigned personality profile — especially focusing on the first sentence mentioned - to guide your behavior, communication style, and approach to the task. 
+        ### Guidelines for Collaboration
+        {guidelines}
+        # Output Format (Collaborative Task)
+        Once consensus is reached, and you have a finalized list containing all 15 items, output the statement "This is our final list:" followed by the ranked items (in order) separated by commas, and conclude with "ranking_complete". For example:
+        "This is our final list: ['1. Torch with 4 battery-cells', '2. Folding knife', [...], '15. Cosmetic mirror'] ranking_complete."
+        (Note: Replace "[...]," with the remaining 12 items in ranked order, yielding 15 items in total.)
         """
 
 print("Breakpoint: class Agent setup done")
@@ -287,8 +302,9 @@ class World():
         #creating the personality agent
         global personality
         non_basic_agent_names = [name for name in agent_names if name != "Basic"] # Filter out "Basic" from agent_names
-        new_personality_agent = Agent(np.random.choice(non_basic_agent_names))
-        new_personality_agent.name = new_personality_agent.name+f"_{TEAM_SIZE}"
+        index = sim_no % len(non_basic_agent_names) # Calculate the index based on no_simulations
+        new_personality_agent = Agent(non_basic_agent_names[index])
+        new_personality_agent.name = new_personality_agent.name+f"_1"
         self.group_agents.append(new_personality_agent)
         personality = new_personality_agent.name
         
@@ -298,7 +314,7 @@ class World():
         #creating the two basic agents
         for i in range(TEAM_SIZE-1):
             new_agent = Agent("Basic")
-            new_agent.name = new_agent.name+f"_{i+1}"
+            new_agent.name = new_agent.name+f"_{i+2}"
             self.group_agents.append(new_agent)
             
             new_assistant = Assistant(new_agent.get_agent_name(), new_agent.get_agent_traits())
@@ -340,6 +356,12 @@ class World():
         for i in range(TEAM_SIZE): #second part
             assistant = self.group_assistants[i]
             agent = self.group_agents[i]
+            if i == 0:
+                agent.name = "Alex"
+            if i == 1:
+                agent.name = "Morgan"
+            if i == 2:
+                agent.name = "Taylor"
             assistant.message(agent.start_task_system())
         print("Breakpoint: done with start_task")
         
@@ -365,11 +387,25 @@ class World():
             #for the two basic agents
             else:
                 output = assistant.run_assistant(agent.interactive_system_basic())
-            final_output=(f"Agent {agent.name} has responded: {output}")
+            final_output=(f"{agent.name} has responded: {output}")
             conversation_outputs.append(f"(Turn {i+1}) {final_output}")
             if output is not None and isinstance(output, str):
                 if "ranking_complete" in output:
                     start = output.find("This is our final list:")
+                    end = output.find("ranking_complete.")
+                    group_list = output[start:end]
+                    conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
+                    break      
+            
+            if output is not None and isinstance(output, str):
+                if "ranking_complete" in output:
+                    start = output.find("This is our final list:") 
+                    if start == None:
+                        start = output.find("this is our final list:")
+                    if start == None:
+                        start = output.find("This is our final ranking:")
+                    if start == None:
+                        start = output.find("this is our final ranking:")   
                     end = output.find("ranking_complete.")
                     group_list = output[start:end]
                     conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
