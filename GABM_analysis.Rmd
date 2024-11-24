@@ -1,0 +1,146 @@
+---
+title: "GABM_Analysis"
+author: "Kristiane Uhrenholt Warncke"
+date: "2024-11-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(dplyr)
+```
+
+```{r}
+data <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-18_19-33-00.csv")
+
+data2 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-22_09-30-18.csv")
+
+data3 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-22_11-27-31.csv")
+```
+
+
+```{r}
+#Expert ranking list
+
+expert_ranking <- c(
+  "A cosmetic mirror",
+  "Overcoat (for everyone)",
+  "2 litres of water per person",
+  "Torch with 4 battery-cells",
+  "Parachute (red & white)",
+  "Folding knife",
+  "Plastic raincoat (large size)",
+  "45 calibre pistol (loaded)",
+  "Sunglasses (for everyone)",
+  "First-aid kit",
+  "Magnetic compass",
+  "Air map of the area",
+  "A book entitled ‘Desert Animals That Can Be Eaten’",
+  "2 litres of 180 proof liquor",
+  "Bottle of 1000 salt tablets"
+)
+
+# Add the expert ranking as a new column in the dataframe
+data3$expert_list <- rep(list(expert_ranking), nrow(data3))
+
+```
+
+
+```{r}
+#convert expert list and other lists to numeric values
+
+# Create a named vector for mapping
+rank_mapping <- setNames(seq_along(expert_ranking), expert_ranking)
+
+# View the mapping
+print(rank_mapping)
+
+map_to_ranks <- function(list_column, rank_mapping) {
+  lapply(list_column, function(row) {
+    # Map each item in the row to its corresponding rank
+    as.numeric(rank_mapping[row])
+  })
+}
+
+# Map rankings to numeric values for agent_list and group_list
+data3$agent_list <- map_to_ranks(data3$agent_1_list, rank_mapping)
+data3$agent_list <- map_to_ranks(data3$agent_2_list, rank_mapping)
+data3$agent_list <- map_to_ranks(data3$agent_3_list, rank_mapping)
+data3$group_list <- map_to_ranks(data3$group_list, rank_mapping)
+data3$expert_list <- map_to_ranks(data3$expert_list, rank_mapping)
+```
+
+^^ does not work 
+
+## CLEANING
+
+```{r}
+clean_column <- function(col) {
+  # Step 1: Extract content within square brackets
+  col <- gsub(".*\\[(.*)\\].*", "\\1", col)
+  
+  # Step 2: Remove leading ranking numbers (e.g., "1. ", "2. ")
+  col <- gsub("\\s*\\d+\\.\\s*", "", col)
+  
+  # Step 3: Remove leading/trailing quotes (single or double quotes)
+  col <- gsub("^['\"]|['\"]$", "", col)
+  
+  # Step 4: Convert strings into lists of items (split by commas)
+  lapply(col, function(x) {
+    # Ensure all rows become lists, split by commas
+    if (is.character(x)) {
+      strsplit(x, ",\\s*")[[1]] # Split on commas and remove whitespace
+    } else if (is.list(x)) {
+      x # If already a list, return as is
+    } else {
+      as.list(x) # Convert any other format to a list
+    }
+  })
+}
+```
+
+
+# Thoughts
+Måske behøver vi ikke cleane det helt vildt meget, så længe vi kan konvertere det til tal, i reference til rækkefølgen i expert ranking. 
+
+Men for at konvertere det bliver vi nødt til at sikre os, at alle items står skrevet præcis som de står skrevet i expert ranking - og hvis ikke, skal de ændres til det. 
+
+og så skal de selvfølgelig også stå som lister og uden deres ranking tal foran, og konverteres til numeric. 
+
+
+
+```{r}
+# List of columns to process
+columns_to_clean <- c("group_list", "agent_1_list", "agent_2_list", "agent_3_list")
+
+# Apply the cleaning function to all specified columns
+data3[columns_to_clean] <- lapply(data3[columns_to_clean], clean_column)
+```
+
+
+```{r}
+data3$agent_2_list[6] 
+data3$agent_3_list[9]
+```
+
+
+```{r}
+class(data$agent_3_list)
+```
+
+
+## MEASURING TEAM SCORE AND GAIN SCORE
+
+```{r}
+#Measuring Kendall tau distance - for measuring team score and gain score
+```
+
+
+
+
