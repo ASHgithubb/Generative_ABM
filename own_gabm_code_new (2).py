@@ -118,7 +118,7 @@ The items available to you are: Torch with 4 battery-cells, Folding knife, Air m
 
 guidelines = f"""
 - **Discussion**: Discuss your individual rankings and the reasoning behind with the others.  
-- **Adjust Rankings Accordingly**: Refine the ranking through dialogue until everyone reaches an agreement. This may include convincing others when you believe adjustments are necessary. 
+- **Adjust Rankings Accordingly**: Refine the ranking through dialogue until everyone reaches an agreement. This may include convincing others when you believe adjustments are necessary (depending on your personality profile). 
 - **Considerations**:
     - **Active Listening**: Take turns listening to each other's arguments.
     - **Consensus Decision-making**: Ensure all team members understand and compromise on the final order.
@@ -166,7 +166,7 @@ class Agent():
         return f"""
         {introduction}
         ## Individual Task Instructions
-        Individually, rank the salvaged items from 1 (most critical) to 15 (least critical) in terms of importance for the team's survival. 
+        Individually, rank the salvaged items from 1 (most critical) to 15 (least critical) in terms of importance for the team's survival and potential rescue in this scenario. 
         Use your assigned personality profile to guide your approach to the task. 
         The ranking should be based on:
         - Survival needs considering the desert environment.
@@ -181,9 +181,9 @@ class Agent():
         return f"""
         {introduction}
         ## Individual Task Instructions
-        Individually, you are required to rank the salvaged items from 1 (most critical) to 15 (least critical) for the team's survival. 
-        Place the most emphasis on the first sentence of your assigned personality profile description, but also consider the other assigned traits to guide your approach to the task. 
-        The ranking should be logical and based on:
+        Individually, you are required to rank the salvaged items from 1 (most critical) to 15 (least critical) in terms of importance for the team's survival and potential rescue in this scenario. 
+        Use your assigned personality profile to guide your behavior, communication style, and approach to the task. Place the most emphasis on the first sentence of your assigned personality profile description, while also considering the other assigned traits.  
+        The ranking should be based on:
         - Survival needs considering the desert environment.
         - Distance from help and potential uses for each item.
         ### Restrictions
@@ -199,7 +199,7 @@ class Agent():
         ## Collaborative Task Instructions
         Once the individual lists are completed, you will collaboratively work with {TEAM_SIZE-1} other team members to finalize a ranked list of the salvaged items.
         The context remains: {introduction}
-        In this part of the task, your goal is to devise a single ranking of all 15 items, from 1 (most critical) to 15 (least critical), that maximizes your chances for survival and potential rescue in this scenario, using insights from all participants.
+        In this part of the task, your goal is to devise a single ranking of all 15 items, from 1 (most critical) to 15 (least critical), in terms of importance for the team's survival and potential rescue in this scenario, using insights from all participants.
         """
     def interactive_system_basic(self):
         return f"""
@@ -473,6 +473,6 @@ for i in range(no_simulations):
 
 current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 filename = os.path.join(f"run_{current_time}.csv")    # Creating file
-root = r"C:\Users\Bruger\Documents\Cognitive_Science\fifth_sem\BACHELOR"
+root =  r"C:\Users\Bruger\Documents\Cognitive_Science\fifth_sem\BACHELOR"
 csv_path_saved = root+ '\\' +output_directory_saved+ '\\'  +filename
 final_dataframe.to_csv(csv_path_saved, index=False)  # Save DataFrame to CSV 
