@@ -14,6 +14,12 @@ library(tidyverse)
 library(readr)
 library(ggplot2)
 library(dplyr)
+
+
+install.packages("rankdist")
+library(rankdist)
+
+
 ```
 
 ```{r}
@@ -22,6 +28,8 @@ data <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-18_19-
 data2 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-22_09-30-18.csv")
 
 data3 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-22_11-27-31.csv")
+
+data4 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-25_17-23-28.csv") 
 ```
 
 
@@ -47,36 +55,9 @@ expert_ranking <- c(
 )
 
 # Add the expert ranking as a new column in the dataframe
-data3$expert_list <- rep(list(expert_ranking), nrow(data3))
+data4$expert_list <- rep(list(expert_ranking), nrow(data4))
 
 ```
-
-
-```{r}
-#convert expert list and other lists to numeric values
-
-# Create a named vector for mapping
-rank_mapping <- setNames(seq_along(expert_ranking), expert_ranking)
-
-# View the mapping
-print(rank_mapping)
-
-map_to_ranks <- function(list_column, rank_mapping) {
-  lapply(list_column, function(row) {
-    # Map each item in the row to its corresponding rank
-    as.numeric(rank_mapping[row])
-  })
-}
-
-# Map rankings to numeric values for agent_list and group_list
-data3$agent_list <- map_to_ranks(data3$agent_1_list, rank_mapping)
-data3$agent_list <- map_to_ranks(data3$agent_2_list, rank_mapping)
-data3$agent_list <- map_to_ranks(data3$agent_3_list, rank_mapping)
-data3$group_list <- map_to_ranks(data3$group_list, rank_mapping)
-data3$expert_list <- map_to_ranks(data3$expert_list, rank_mapping)
-```
-
-^^ does not work 
 
 ## CLEANING
 
@@ -106,41 +87,153 @@ clean_column <- function(col) {
 ```
 
 
-# Thoughts
-Måske behøver vi ikke cleane det helt vildt meget, så længe vi kan konvertere det til tal, i reference til rækkefølgen i expert ranking. 
-
-Men for at konvertere det bliver vi nødt til at sikre os, at alle items står skrevet præcis som de står skrevet i expert ranking - og hvis ikke, skal de ændres til det. 
-
-og så skal de selvfølgelig også stå som lister og uden deres ranking tal foran, og konverteres til numeric. 
-
-
-
 ```{r}
 # List of columns to process
 columns_to_clean <- c("group_list", "agent_1_list", "agent_2_list", "agent_3_list")
 
 # Apply the cleaning function to all specified columns
-data3[columns_to_clean] <- lapply(data3[columns_to_clean], clean_column)
+data4[columns_to_clean] <- lapply(data4[columns_to_clean], clean_column)
+
+str(data4)
 ```
 
 
 ```{r}
-data3$agent_2_list[6] 
-data3$agent_3_list[9]
+data4$expert_list[2]
+data4$group_list[2]
 ```
+
+```{r}
+class(data4$agent_3_list)
+```
+
+# Thoughts
+For at konvertere listerne til de tal der matcher items'ne bliver vi nødt til at sikre os, at alle items står skrevet præcis som de står skrevet i expert ranking - og hvis ikke, skal de ændres til det. 
 
 
 ```{r}
-class(data$agent_3_list)
+#convert expert list and other lists to numeric values
+
+# Create a named vector for mapping
+rank_mapping <- setNames(seq_along(expert_ranking), expert_ranking)
+
+# View the mapping
+print(rank_mapping)
+
+#function for mapping numbers to items
+map_to_ranks <- function(list_column, rank_mapping) {
+  lapply(list_column, function(row) {
+    # Map each item in the row to its corresponding rank
+    as.numeric(rank_mapping[row])
+  })
+}
+
+#create a new column with expert numerical values 
+data4$expert_rank_num <- map_to_ranks(data4$expert_list, rank_mapping)
+
+data4$expert_rank_num[1]
+
+# Map rankings to numeric values for agent_lists and group_list
+### ONLY works if items are written exactly as in the expert_list ###
+
+data4$agent_1_rank <- map_to_ranks(data4$agent_1_list, rank_mapping)
+data4$agent_2_rank <- map_to_ranks(data4$agent_2_list, rank_mapping)
+data4$agent_3_rank <- map_to_ranks(data4$agent_3_list, rank_mapping)
+data4$group_rank <- map_to_ranks(data4$group_list, rank_mapping)
+
 ```
 
+^^ der kom en NA i group_rank, og kan ikke regne ud hvorfor
 
-## MEASURING TEAM SCORE AND GAIN SCORE
+## CALCULATING TEAM SCORE AND GAIN SCORE
 
 ```{r}
-#Measuring Kendall tau distance - for measuring team score and gain score
+#Function for measuring Kendall tau distance - for measuring team score
+ ## 0 = identical, 100 = completely opposite
+
+calculate_kendall_tau <- function(expert_rank, agent_rank) {
+  # Use DistancePair() to calculate the distance
+  tau <- DistancePair(expert_rank, agent_rank)
+  return(tau)
+}
+
 ```
 
+```{r}
+# Calculate Kendall tau distance for each agent rank column
+data4$agent_1_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$agent_1_rank)
+data4$agent_2_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$agent_2_rank)
+data4$agent_3_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$agent_3_rank)
+data4$team_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$group_rank)
+
+```
+
+```{r}
+# Calculating gain score for each group 
+
+# Calculate the mean of individual agent scores for each row
+data4$mean_agent_score <- rowMeans(data4[, c("agent_1_score", "agent_2_score", "agent_3_score")], na.rm = TRUE)
+
+# Calculate the gain score as the difference between the team score and the mean agent score
+data4$gain_score <- data4$team_score - data4$mean_agent_score
+```
+
+# SUMMARIZING
+
+```{r}
+# Summary statistics for each personality trait
+summary_stats <- data4 %>%
+  group_by(personality) %>%
+  summarise(
+    mean_team_score = mean(team_score),
+    sd_team_score = sd(team_score),
+    mean_gain_score = mean(gain_score),
+    sd_gain_score = sd(gain_score)
+)
+
+
+print(summary_stats)
+
+```
+
+# VISUALIZING DATA
+
+
+```{r}
+ggplot(data4, aes(x = personality, y = team_score, fill = personality)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(title = "Team Scores for Each Trait",
+       x = "Personality Trait",
+       y = "Team Score") +
+  theme_minimal() +
+  ylim(0, 100) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "none"
+  )
+```
+
+```{r}
+# Bar plot with error bars
+ggplot(summary_stats, aes(x = personality, y = mean_team_score, fill = personality)) +
+  geom_bar(stat = "identity", color = "black", width = 0.6) +
+  geom_errorbar(aes(ymin = mean_team_score - sd_team_score, ymax = mean_team_score + sd_team_score),
+                width = 0.2) +
+  labs(title = "Mean Team Scores with Standard Deviation",
+       x = "Personality Trait",
+       y = "Mean Team Score") +
+  theme_minimal() +
+  ylim(0, 100) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "none"
+  )
+
+```
 
 
 
