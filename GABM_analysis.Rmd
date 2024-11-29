@@ -14,22 +14,12 @@ library(tidyverse)
 library(readr)
 library(ggplot2)
 library(dplyr)
-
-
-install.packages("rankdist")
 library(rankdist)
-
-
 ```
 
 ```{r}
-data <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-18_19-33-00.csv")
+data <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-28_21-03-55.csv")
 
-data2 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-22_09-30-18.csv")
-
-data3 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-22_11-27-31.csv")
-
-data4 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-25_17-23-28.csv") 
 ```
 
 
@@ -55,11 +45,12 @@ expert_ranking <- c(
 )
 
 # Add the expert ranking as a new column in the dataframe
-data4$expert_list <- rep(list(expert_ranking), nrow(data4))
+data$expert_list <- rep(list(expert_ranking), nrow(data))
 
 ```
 
 ## CLEANING
+
 
 ```{r}
 clean_column <- function(col) {
@@ -73,38 +64,64 @@ clean_column <- function(col) {
   col <- gsub("^['\"]|['\"]$", "", col)
   
   # Step 4: Convert strings into lists of items (split by commas)
-  lapply(col, function(x) {
-    # Ensure all rows become lists, split by commas
-    if (is.character(x)) {
+  col <- lapply(col, function(x) {
+    if (is.character(x) && length(x) > 0) {
       strsplit(x, ",\\s*")[[1]] # Split on commas and remove whitespace
     } else if (is.list(x)) {
       x # If already a list, return as is
     } else {
-      as.list(x) # Convert any other format to a list
+      NA # Replace invalid values with NA
     }
   })
+  
+  # Return the cleaned column
+  return(col)
 }
+
+
 ```
 
 
 ```{r}
-# List of columns to process
-columns_to_clean <- c("group_list", "agent_1_list", "agent_2_list", "agent_3_list")
 
-# Apply the cleaning function to all specified columns
-data4[columns_to_clean] <- lapply(data4[columns_to_clean], clean_column)
+## ONLY RUN CLEANING ONCE!!! ##
 
-str(data4)
+# Apply the cleaning function to each column using a for loop
+for (col in columns_to_clean) {
+  data[[col]] <- clean_column(data[[col]])
+}
+
+# Function to check if all columns in a row contain valid lists with exactly 15 items
+is_row_valid <- function(row) {
+  all(sapply(row, function(x) {
+    !is.na(x) && length(x) == 15
+  }))
+}
+
+# Identify valid rows
+valid_rows <- sapply(1:nrow(data), function(i) {
+  is_row_valid(data[i, columns_to_clean])
+})
+
+# Keep only valid rows
+data <- data[valid_rows, ]
+
+# Check cleaned data
+data$agent_1_list[[21]]
+
 ```
 
 
+
+
+
 ```{r}
-data4$expert_list[2]
-data4$group_list[2]
+data$expert_list[2]
+data$group_list[2]
 ```
 
 ```{r}
-class(data4$agent_3_list)
+class(data$agent_3_list)
 ```
 
 # Thoughts
@@ -129,17 +146,17 @@ map_to_ranks <- function(list_column, rank_mapping) {
 }
 
 #create a new column with expert numerical values 
-data4$expert_rank_num <- map_to_ranks(data4$expert_list, rank_mapping)
+data$expert_rank_num <- map_to_ranks(data$expert_list, rank_mapping)
 
-data4$expert_rank_num[1]
+data$expert_rank_num[1]
 
 # Map rankings to numeric values for agent_lists and group_list
 ### ONLY works if items are written exactly as in the expert_list ###
 
-data4$agent_1_rank <- map_to_ranks(data4$agent_1_list, rank_mapping)
-data4$agent_2_rank <- map_to_ranks(data4$agent_2_list, rank_mapping)
-data4$agent_3_rank <- map_to_ranks(data4$agent_3_list, rank_mapping)
-data4$group_rank <- map_to_ranks(data4$group_list, rank_mapping)
+data$agent_1_rank <- map_to_ranks(data$agent_1_list, rank_mapping)
+data$agent_2_rank <- map_to_ranks(data$agent_2_list, rank_mapping)
+data$agent_3_rank <- map_to_ranks(data$agent_3_list, rank_mapping)
+data$group_rank <- map_to_ranks(data$group_list, rank_mapping)
 
 ```
 
@@ -161,10 +178,10 @@ calculate_kendall_tau <- function(expert_rank, agent_rank) {
 
 ```{r}
 # Calculate Kendall tau distance for each agent rank column
-data4$agent_1_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$agent_1_rank)
-data4$agent_2_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$agent_2_rank)
-data4$agent_3_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$agent_3_rank)
-data4$team_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$group_rank)
+data$agent_1_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$agent_1_rank)
+data$agent_2_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$agent_2_rank)
+data$agent_3_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$agent_3_rank)
+data$team_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$group_rank)
 
 ```
 
@@ -172,17 +189,17 @@ data4$team_score <- mapply(calculate_kendall_tau, data4$expert_rank_num, data4$g
 # Calculating gain score for each group 
 
 # Calculate the mean of individual agent scores for each row
-data4$mean_agent_score <- rowMeans(data4[, c("agent_1_score", "agent_2_score", "agent_3_score")], na.rm = TRUE)
+data$mean_agent_score <- rowMeans(data[, c("agent_1_score", "agent_2_score", "agent_3_score")], na.rm = TRUE)
 
 # Calculate the gain score as the difference between the team score and the mean agent score
-data4$gain_score <- data4$team_score - data4$mean_agent_score
+data$gain_score <- data$team_score - data$mean_agent_score
 ```
 
 # SUMMARIZING
 
 ```{r}
 # Summary statistics for each personality trait
-summary_stats <- data4 %>%
+summary_stats <- data %>%
   group_by(personality) %>%
   summarise(
     mean_team_score = mean(team_score),
@@ -200,7 +217,7 @@ print(summary_stats)
 
 
 ```{r}
-ggplot(data4, aes(x = personality, y = team_score, fill = personality)) +
+ggplot(data, aes(x = personality, y = team_score, fill = personality)) +
   geom_bar(stat = "identity", color = "black") +
   labs(title = "Team Scores for Each Trait",
        x = "Personality Trait",
