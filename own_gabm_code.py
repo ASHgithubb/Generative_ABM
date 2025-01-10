@@ -21,7 +21,7 @@ import pandas as pd
 
 # Constants
 TEAM_SIZE = 3  
-no_simulations = 50 # Adjust as necessary
+no_simulations = 200 # Adjust as necessary
 turn_takings = 30 # Adjust as necessary
 temperature = 0.8 # Adjust as necessary
 defined_model = "gpt-4o-mini" # Adjust as necessary
@@ -35,7 +35,7 @@ group_list = None
 turn_takings_count = 0
 
 #Capturing print statements
-conversation_outputs = [] # Initialize a list to store individual outputs
+#conversation_outputs = [] # Initialize a list to store individual outputs
 final_dataframe = pd.DataFrame()
 
 # OpenAI API Key
@@ -316,14 +316,14 @@ class World():
 
     def run_once(self):        
         print("Starting first part: instructions")
-        conversation_outputs.append("Starting first part: instructions")
+        #conversation_outputs.append("Starting first part: instructions")
 
         #for personality agent
         assistant = self.group_assistants[0]
         agent = self.group_agents[0]
-        print(f"Assigning ranking number {1}")
+        #print(f"Assigning ranking number {1}")
         output = assistant.run_assistant(agent.instructions_system_personality())
-        conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
+        #conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
         global agent_1_list
         agent_1_list = output
 
@@ -331,9 +331,9 @@ class World():
         for i in range(TEAM_SIZE-1): #first part
             assistant = self.group_assistants[i+1]
             agent = self.group_agents[i+1]
-            print(f"Assigning ranking number {i+2}")
+            #print(f"Assigning ranking number {i+2}")
             output = assistant.run_assistant(agent.instructions_system_basic())
-            conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
+            #conversation_outputs.append(f"Agent {agent.name} has responded: {output}")
             if i == 0:
                 global agent_2_list
                 agent_2_list = output
@@ -341,7 +341,7 @@ class World():
                 global agent_3_list
                 agent_3_list = output
 
-        print("Breakpoint: done with instructions")
+        #print("Breakpoint: done with instructions")
 
         print("Starting second part: start_task")
 
@@ -355,12 +355,12 @@ class World():
             if i == 2:
                 agent.name = "Taylor"
             assistant.message(agent.start_task_system())
-        print("Breakpoint: done with start_task")
+        #print("Breakpoint: done with start_task")
         
         output = None
 
         print("Starting third part: interactive_task")
-        conversation_outputs.append("Starting interactive task:")
+        #conversation_outputs.append("Starting interactive task:")
 
         i=0
         while i<turn_takings: #third part
@@ -380,13 +380,13 @@ class World():
             else:
                 output = assistant.run_assistant(agent.interactive_system_basic())
             final_output=(f"{agent.name} has responded: {output}")
-            conversation_outputs.append(f"(Turn {i+1}) {final_output}")
+            #conversation_outputs.append(f"(Turn {i+1}) {final_output}")
             if output is not None and isinstance(output, str):
                 if "ranking_complete" in output:
                     start = output.find("This is our final list:")
                     end = output.find("ranking_complete.")
                     group_list = output[start:end]
-                    conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
+                    #conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
                     break      
             
             if output is not None and isinstance(output, str):
@@ -400,13 +400,13 @@ class World():
                         start = output.find("this is our final ranking:")   
                     end = output.find("ranking_complete.")
                     group_list = output[start:end]
-                    conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
+                    #conversation_outputs.append(f"Note: Task finished as concensus was reached withing {i+1} turntakings.")
                     break            
             assistant_other1.message(final_output)
             assistant_other2.message(final_output)
             i+=1
         if i == turn_takings:
-            conversation_outputs.append(f"Note: Task finished as concensus was not reached within {turn_takings} turntakings.")
+            #conversation_outputs.append(f"Note: Task finished as concensus was not reached within {turn_takings} turntakings.")
             group_list = None
         print("Breakpoint: done with interactive_task")
 
@@ -422,9 +422,9 @@ class World():
         filename = os.path.join(f"run_{current_time}.csv")    # Creating file
         root = os.getcwd()
 
-        csv_path_outputs = root+ '\\' +output_directory_conversation+ '\\'  +filename
-        df_conversation = pd.DataFrame(conversation_outputs)  # Create DataFrame
-        df_conversation.to_csv(csv_path_outputs, index=False)  # Save DataFrame to CSV
+        #csv_path_outputs = root+ '\\' +output_directory_conversation+ '\\'  +filename
+        #df_conversation = pd.DataFrame(conversation_outputs)  # Create DataFrame
+        #df_conversation.to_csv(csv_path_outputs, index=False)  # Save DataFrame to CSV
 
     def save_outputs_final(self):    
         global final_dataframe
@@ -462,17 +462,17 @@ for i in range(no_simulations):
     print(f"Starting model run {i+1} of {no_simulations}.")
     global sim_no
     sim_no = i+1
-    conversation_outputs = [] # resetting output documents
+    #conversation_outputs = [] # resetting output documents
     model = World()
     model.create_group()
     model.run_once()
-    model.save_outputs_conversation()
+    #model.save_outputs_conversation()
     model.save_outputs_final()
     model.delete_assistants()
     print(f"Model run {i+1} of {no_simulations} complete.")   
 
-current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-filename = os.path.join(f"run_{current_time}.csv")    # Creating file
-root =  os.getcwd()
-csv_path_saved = root+ '\\' +output_directory_saved+ '\\'  +filename
-final_dataframe.to_csv(csv_path_saved, index=False)  # Save DataFrame to CSV 
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = os.path.join(f"run_{current_time}.csv")    # Creating file
+    root =  os.getcwd()
+    csv_path_saved = root+ '\\' +output_directory_saved+ '\\'  +filename
+    final_dataframe.to_csv(csv_path_saved, index=False)  # Save DataFrame to CSV 
