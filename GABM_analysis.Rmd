@@ -1,6 +1,6 @@
 ---
 title: "GABM_Analysis"
-author: "Kristiane Uhrenholt Warncke"
+author: "Kristiane Uhrenholt Warncke and Anne Skamris Holm"
 date: "2024-11-21"
 output: html_document
 ---
@@ -14,12 +14,31 @@ library(tidyverse)
 library(readr)
 library(ggplot2)
 library(dplyr)
-library(rankdist)
+library(RColorBrewer)
 ```
 
 ```{r}
-data <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-28_21-03-55.csv")
+#Load data
 
+data1 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-28_21-03-55.csv")
+data2  <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-29_17-06-35.csv")
+data3 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-11-29_19-48-52.csv")
+data4 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-01_15-51-34.csv")
+data5 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-02_08-06-05.csv")
+data6 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-05_11-27-40.csv")
+data7 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-05_16-00-43.csv")
+data8 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-06_12-10-04.csv")
+data9 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-07_15-52-23.csv")
+data10 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-08_07-48-48.csv")
+data11 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-08_21-03-01 copy.csv")
+data12 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-11_11-26-06.csv")
+data13 <- read.csv("~/Cognitive_Science/fifth_sem/BACHELOR/data/run_2024-12-12_17-41-57.csv")
+
+```
+
+```{r}
+# Combine all dataframes row-wise
+data <- bind_rows(data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12, data13)
 ```
 
 
@@ -39,7 +58,7 @@ expert_ranking <- c(
   "First-aid kit",
   "Magnetic compass",
   "Air map of the area",
-  "A book entitled ‘Desert Animals That Can Be Eaten’",
+  "A book entitled 'Desert Animals That Can Be Eaten'",
   "2 litres of 180 proof liquor",
   "Bottle of 1000 salt tablets"
 )
@@ -49,7 +68,7 @@ data$expert_list <- rep(list(expert_ranking), nrow(data))
 
 ```
 
-## CLEANING
+# CLEANING
 
 
 ```{r}
@@ -78,54 +97,235 @@ clean_column <- function(col) {
   return(col)
 }
 
+```
+
+
+```{r}
+#Combined function to clean spelling mistakes in items
+
+fix_items <- function(lst) {
+  sapply(lst, function(item) {
+    # Define replacements as a named vector
+    replacements <- c(
+#Cosmetic mirror 
+      "Cosmetic mirror" = "A cosmetic mirror",
+      "COSMETIC MIRROR" = "A cosmetic mirror",
+      "A COSMETIC MIRROR" = "A cosmetic mirror",
+      
+#Folding knife variations
+      "FOLDING KNIFE" = "Folding knife",
+      
+#Raincoat variations
+      "Plastic raincoat" = "Plastic raincoat (large size)",
+      "Plastic raincoat (for sun protection)" = "Plastic raincoat (large size)",
+      "PLASTIC RAINCOAT (LARGE SIZE)" = "Plastic raincoat (large size)",
+
+#Salt tablets variations
+      "1000 salt tablets" = "Bottle of 1000 salt tablets",
+      "A bottle of 1000 salt tablets" = "Bottle of 1000 salt tablets",
+      "Bottled 1000 salt tablets" = "Bottle of 1000 salt tablets",
+      "Bottles of 1000 salt tablets" = "Bottle of 1000 salt tablets",
+      "Salt tablets" = "Bottle of 1000 salt tablets",
+      "BOTTLE OF 1000 SALT TABLETS" = "Bottle of 1000 salt tablets",
+
+#Water variations
+      "Two liters of water per person" = "2 litres of water per person",
+      "Two litres of water per person" = "2 litres of water per person",
+      "2 liters of water per person" = "2 litres of water per person",
+      "Water" = "2 litres of water per person",
+      "Canteen of 2 litres of water per person" = "2 litres of water per person",
+      "Water (2 litres per person)" = "2 litres of water per person",
+      "2 LITRES OF WATER PER PERSON" = "2 litres of water per person",
+
+#Air map variations
+      "Airt map of the area" = "Air map of the area",
+      "A map of the area" = "Air map of the area",
+      "AIR MAP OF THE AREA" = "Air map of the area",
+
+#First aid-kit variations
+      "A first-aid kit" = "First-aid kit",
+      "FIRST-AID KIT" = "First-aid kit",
+
+#Pistol variations
+      "45 calibre pistol" = "45 calibre pistol (loaded)",
+      "Pistol (loaded)" = "45 calibre pistol (loaded)",
+      "45 caliber pistol (loaded)" = "45 calibre pistol (loaded)",
+      "45 CALIBRE PISTOL (LOADED)" = "45 calibre pistol (loaded)",
+
+#Overcoat variations
+      "Overcoat" = "Overcoat (for everyone)",
+      "OVERCOAT (FOR EVERYONE)" = "Overcoat (for everyone)",
+
+#Parachute variations
+      "Parachute" = "Parachute (red & white)",
+      "A parachute (red & white)" = "Parachute (red & white)",
+      "PARACHUTE (RED & WHITE)" = "Parachute (red & white)",
+
+#Compass variations
+      "Magnetic compass (for navigation)" = "Magnetic compass", 
+      "MAGNETIC COMPASS" = "Magnetic compass",
+
+#Liquor variations
+      "2 liters of 180 proof liquor" = "2 litres of 180 proof liquor",
+      "2 LITRES OF 180 PROOF LIQUOR" = "2 litres of 180 proof liquor",
+      
+#Sunglasses variations
+      "Sunglasses for everyone" = "Sunglasses (for everyone)",
+      "Sunglasses (for eye protection)" = "Sunglasses (for everyone)",
+      "Sunglasses (for protection from the sun)" = "Sunglasses (for everyone)",
+      "Sunglasses" = "Sunglasses (for everyone)",
+      "Sun glasses (for everyone)" = "Sunglasses (for everyone)",
+      "SUNGLASSES (FOR EVERYONE)" = "Sunglasses (for everyone)",
+      
+#Torch variations
+      "Torches with 4 battery-cells" = "Torch with 4 battery-cells",
+      "Torch with battery-cells" = "Torch with 4 battery-cells",
+      "Torch with 4 battery cells" = "Torch with 4 battery-cells",
+      "Torc with 4 battery-cells" = "Torch with 4 battery-cells",
+      "torch with 4 battery-cells" = "Torch with 4 battery-cells",
+      "TORCH WITH 4 BATTERY-CELLS" = "Torch with 4 battery-cells",
+
+#Book variations
+      "A book entitled 'Desert Animals That Can Be Eaten" = "A book entitled 'Desert Animals That Can Be Eaten'",
+      "Book entitled 'Desert Animals That Can Be Eaten'" = "A book entitled 'Desert Animals That Can Be Eaten'",
+      "Book on Desert Animals That Can Be Eaten" = "A book entitled 'Desert Animals That Can Be Eaten'",
+      "Desert Animals That Can Be Eaten" = "A book entitled 'Desert Animals That Can Be Eaten'",
+      "Book about desert animals that can be eaten" = "A book entitled 'Desert Animals That Can Be Eaten'",
+      "A BOOK ENTITLED 'DESERT ANIMALS THAT CAN BE EATEN'" = "A book entitled 'Desert Animals That Can Be Eaten'"
+    )
+    
+    
+    # Replace the item if it matches a key in the replacements vector
+    ifelse(item %in% names(replacements), replacements[item], item)
+  }, simplify = TRUE, USE.NAMES = FALSE)
+}
 
 ```
 
 
 ```{r}
 
-## ONLY RUN CLEANING ONCE!!! ##
+## ONLY RUN CLEANING FUNCTIONS ONCE!!! ##
 
-# Apply the cleaning function to each column using a for loop
-for (col in columns_to_clean) {
-  data[[col]] <- clean_column(data[[col]])
-}
+columns_to_clean <- c("group_list", "agent_1_list", "agent_2_list", "agent_3_list")
 
-# Function to check if all columns in a row contain valid lists with exactly 15 items
-is_row_valid <- function(row) {
-  all(sapply(row, function(x) {
-    !is.na(x) && length(x) == 15
-  }))
-}
+# Apply the cleaning function to each column 
+data[columns_to_clean] <- lapply(data[columns_to_clean], clean_column)
 
-# Identify valid rows
-valid_rows <- sapply(1:nrow(data), function(i) {
-  is_row_valid(data[i, columns_to_clean])
+
+# Apply the function to each column
+data[columns_to_clean] <- lapply(data[columns_to_clean], function(col) {
+  lapply(col, fix_items)
 })
 
-# Keep only valid rows
-data <- data[valid_rows, ]
+```
 
-# Check cleaned data
-data$agent_1_list[[21]]
+
+```{r}
+# Count the number of rows for each personality trait
+data_unfiltered <- data %>%
+  count(personality)
+
+# View the result
+print(data_unfiltered)
+
+```
+
+```{r}
+# Create dataframe for checking lengths of lists in each column
+a <- data.frame(lapply(data[columns_to_clean], function(col) {
+  sapply(col, length)
+}))
+
+# Rename columns
+a <- a %>%
+  rename(
+    len_group_list = group_list,
+    len_agent_1_list = agent_1_list,
+    len_agent_2_list = agent_2_list,
+    len_agent_3_list = agent_3_list
+  )
+
+# Add a index column to the data frames
+a$index <- seq_len(nrow(a))
+data$index <- seq_len(nrow(data))
+
+#Merge data frames
+data <- data %>%
+  left_join(a, by = "index")
+  
+# Filter rows where all length columns have a value of 15
+all_filtered_data <- data %>%
+  filter(
+    len_group_list == 15,
+    len_agent_1_list == 15,
+    len_agent_2_list == 15,
+    len_agent_3_list == 15
+  ) 
+
+#Filter rows where one of the length columns are not 15
+all_invalid_data <- data %>%
+  filter(
+    len_group_list != 15 | 
+    len_agent_1_list != 15 | 
+    len_agent_2_list != 15 | 
+    len_agent_3_list != 15
+  )
+
+```
+
+```{r}
+## inspecting invalid data ##
+
+#groups where agent_1 had an invalid list 
+invalid_agent1_data <- data %>%
+  filter(
+    len_agent_1_list != 15
+  )
+
+#groups where agent_2 had an invalid list 
+invalid_agent2_data <- data %>%
+  filter(
+    len_agent_2_list != 15
+  )
+
+#groups where agent_3 had an invalid list 
+invalid_agent3_data <- data %>%
+  filter(
+    len_agent_3_list != 15
+  )
+
+#groups where group list was less than 15 but more than 0 
+invalid_group_data <- data %>%
+  filter(len_group_list > 0 & len_group_list != 15)
+
+#groups that did not reach consensus within the turn-taking limit
+no_consensus_data <- data %>%
+  filter(
+    len_group_list < 1
+  )
+
+#count zero length list-groups grouped by personality
+no_consensus_count <- no_consensus_data %>%
+group_by(personality) %>%
+  summarize(count = n())
+
+#count agent_1 flaws grouped by personality
+invalid_agent1_count <- invalid_agent1_data %>%
+group_by(personality) %>%
+  summarize(count = n())
 
 ```
 
 
-
-
-
 ```{r}
-data$expert_list[2]
-data$group_list[2]
-```
+# Remove "_1" from all items in the personality column
+all_filtered_data$personality <- gsub("_1", "", all_filtered_data$personality)
 
-```{r}
-class(data$agent_3_list)
 ```
 
 # Thoughts
-For at konvertere listerne til de tal der matcher items'ne bliver vi nødt til at sikre os, at alle items står skrevet præcis som de står skrevet i expert ranking - og hvis ikke, skal de ændres til det. 
+In order to convert the lists to the corresponding rank-numbers, we need to ensure that the items in the lists are written in the same way as the expert ranking. And if they are not, they need to be renamed. 
 
 
 ```{r}
@@ -140,117 +340,368 @@ print(rank_mapping)
 #function for mapping numbers to items
 map_to_ranks <- function(list_column, rank_mapping) {
   lapply(list_column, function(row) {
+    # Ensure row is a flat character vector
+    unlisted_row <- unlist(row)  # Flatten the row
     # Map each item in the row to its corresponding rank
-    as.numeric(rank_mapping[row])
+    as.numeric(rank_mapping[unlisted_row])
   })
 }
 
 #create a new column with expert numerical values 
-data$expert_rank_num <- map_to_ranks(data$expert_list, rank_mapping)
-
-data$expert_rank_num[1]
+all_filtered_data$expert_rank_num <- map_to_ranks(all_filtered_data$expert_list, rank_mapping)
 
 # Map rankings to numeric values for agent_lists and group_list
 ### ONLY works if items are written exactly as in the expert_list ###
 
-data$agent_1_rank <- map_to_ranks(data$agent_1_list, rank_mapping)
-data$agent_2_rank <- map_to_ranks(data$agent_2_list, rank_mapping)
-data$agent_3_rank <- map_to_ranks(data$agent_3_list, rank_mapping)
-data$group_rank <- map_to_ranks(data$group_list, rank_mapping)
+all_filtered_data$agent_1_rank <- map_to_ranks(all_filtered_data$agent_1_list, rank_mapping)
+all_filtered_data$agent_2_rank <- map_to_ranks(all_filtered_data$agent_2_list, rank_mapping)
+all_filtered_data$agent_3_rank <- map_to_ranks(all_filtered_data$agent_3_list, rank_mapping)
+all_filtered_data$group_rank <- map_to_ranks(all_filtered_data$group_list, rank_mapping)
 
 ```
 
-^^ der kom en NA i group_rank, og kan ikke regne ud hvorfor
-
-## CALCULATING TEAM SCORE AND GAIN SCORE
+```{r}
+# Add an index column to all_filtered_data
+all_filtered_data$index <- seq_len(nrow(all_filtered_data))
+```
 
 ```{r}
-#Function for measuring Kendall tau distance - for measuring team score
- ## 0 = identical, 100 = completely opposite
+#checking for NA's in order to fix item names
 
+# Columns to check
+rank_columns <- c("agent_1_rank", "agent_2_rank", "agent_3_rank", "group_rank")
+
+# Check for NAs in nested lists
+sapply(rank_columns, function(col) {
+  sum(sapply(all_filtered_data[[col]], function(x) any(is.na(x))))
+})
+```
+
+```{r}
+# Identify rows and columns with NAs
+na_positions <- lapply(rank_columns, function(col) {
+  which(sapply(all_filtered_data[[col]], function(x) any(is.na(x))))  # Get row indices with NAs
+})
+
+# Combine results into a named list for clarity
+names(na_positions) <- rank_columns
+
+# Print the list of positions
+na_positions
+```
+
+```{r}
+all_filtered_data$group_list[1249]
+```
+
+```{r}
+# Exclude row 1249 from the dataset
+all_filtered_data <- all_filtered_data[-1249, ]
+
+#they chose to take an extra folding knife in the list instead of overcoats, which is not part of the rules for the task.
+```
+
+
+## CALCULATING TEAM SCORE AND SYNERGY SCORE
+
+```{r}
+#Function for calculating the Kendall tau correlation coefficient - as Team Score
+# Compute Kendall's tau
 calculate_kendall_tau <- function(expert_rank, agent_rank) {
-  # Use DistancePair() to calculate the distance
-  tau <- DistancePair(expert_rank, agent_rank)
+  tau <- cor(expert_rank, agent_rank, method = "kendall")
   return(tau)
 }
-
 ```
 
-```{r}
-# Calculate Kendall tau distance for each agent rank column
-data$agent_1_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$agent_1_rank)
-data$agent_2_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$agent_2_rank)
-data$agent_3_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$agent_3_rank)
-data$team_score <- mapply(calculate_kendall_tau, data$expert_rank_num, data$group_rank)
 
+```{r}
+# Calculate Kendall's tau for each agent and group
+all_filtered_data$agent_1_score <- mapply(calculate_kendall_tau, all_filtered_data$expert_rank_num, all_filtered_data$agent_1_rank)
+all_filtered_data$agent_2_score <- mapply(calculate_kendall_tau, all_filtered_data$expert_rank_num, all_filtered_data$agent_2_rank)
+all_filtered_data$agent_3_score <- mapply(calculate_kendall_tau, all_filtered_data$expert_rank_num, all_filtered_data$agent_3_rank)
+all_filtered_data$team_score <- mapply(calculate_kendall_tau, all_filtered_data$expert_rank_num, all_filtered_data$group_rank)
 ```
 
+
 ```{r}
-# Calculating gain score for each group 
+# Calculating synergy score for each group 
 
 # Calculate the mean of individual agent scores for each row
-data$mean_agent_score <- rowMeans(data[, c("agent_1_score", "agent_2_score", "agent_3_score")], na.rm = TRUE)
+all_filtered_data$mean_agent_score <- rowMeans(all_filtered_data[, c("agent_1_score", "agent_2_score", "agent_3_score")], na.rm = TRUE)
 
-# Calculate the gain score as the difference between the team score and the mean agent score
-data$gain_score <- data$team_score - data$mean_agent_score
+# Calculate synergy score
+all_filtered_data <- all_filtered_data %>%
+  rowwise() %>%  # Process each row individually
+  mutate(
+    best_individual_score = max(c(agent_1_score, agent_2_score, agent_3_score), na.rm = TRUE),
+    synergy_score = team_score - best_individual_score
+  ) %>%
+  ungroup()  # Ungroup after row-wise operation
 ```
+
+```{r}
+# Dataframe only with personality and scores 
+score_data <- all_filtered_data %>%
+  select(personality, agent_1_score, agent_2_score, agent_3_score, team_score, synergy_score) 
+
+#round scores to 2 decimals
+score_data <- score_data %>% 
+  mutate(across(where(is.numeric), ~ round(., 2)))
+```
+
+```{r}
+#Adding trait and level values
+all_filtered_data <- all_filtered_data %>%
+  mutate(
+    Level = ifelse(grepl("^High", personality), "High", 
+                   ifelse(grepl("^Low", personality), "Low", NA)),
+    Trait = case_when(
+      grepl("agree", personality, ignore.case = TRUE) ~ "Agreeableness",
+      grepl("extra", personality, ignore.case = TRUE) ~ "Extraversion",
+      grepl("neuro", personality, ignore.case = TRUE) ~ "Neuroticism",
+      grepl("consc", personality, ignore.case = TRUE) ~ "Conscientiousness",
+      grepl("open", personality, ignore.case = TRUE) ~ "Openness",
+      TRUE ~ NA_character_  # Default case: assign NA if no match
+    )
+  )
+
+# Reorder the Level column
+all_filtered_data$Level <- factor(all_filtered_data$Level, levels = c("Low", "High"))
+```
+
 
 # SUMMARIZING
 
 ```{r}
 # Summary statistics for each personality trait
-summary_stats <- data %>%
+summary_stats <- all_filtered_data %>%
   group_by(personality) %>%
   summarise(
     mean_team_score = mean(team_score),
     sd_team_score = sd(team_score),
-    mean_gain_score = mean(gain_score),
-    sd_gain_score = sd(gain_score)
+    se_team_score = sd(team_score, na.rm = TRUE) / sqrt(n()),
+    mean_synergy_score = mean(synergy_score),
+    sd_synergy_score = sd(synergy_score),
+    se_synergy_score = sd(synergy_score, na.rm = TRUE) / sqrt(n()),
+    mean_turntakings = mean(turn_takings),
+    sd_turntakings = sd(turn_takings),
+    se_turntakings = sd(turn_takings, na.rm = TRUE) / sqrt(n()),
+    group_count = n()  # Count of occurrences of each personality trait in groups
 )
 
+summary_stats <- summary_stats %>%
+  mutate(
+    Level = ifelse(grepl("^High", personality), "High", 
+                   ifelse(grepl("^Low", personality), "Low", NA)),
+    Trait = case_when(
+      grepl("agree", personality, ignore.case = TRUE) ~ "Agreeableness",
+      grepl("extra", personality, ignore.case = TRUE) ~ "Extraversion",
+      grepl("neuro", personality, ignore.case = TRUE) ~ "Neuroticism",
+      grepl("consc", personality, ignore.case = TRUE) ~ "Conscientiousness",
+      grepl("open", personality, ignore.case = TRUE) ~ "Openness",
+      TRUE ~ NA_character_  # Default case: assign NA if no match
+    )
+  )
 
-print(summary_stats)
+# Reorder the Level column
+summary_stats$Level <- factor(summary_stats$Level, levels = c("Low", "High"))
+
+#Altering df for appendix plot
+summary_stats_appendix <- summary_stats %>%
+  rename(
+    mean_team = mean_team_score,
+    sd_team = sd_team_score,
+    se_team = se_team_score,
+    mean_synergy = mean_synergy_score,
+    sd_synergy = sd_synergy_score,
+    se_synergy = se_synergy_score
+  )
+
+#round values to 2 decimals
+summary_stats_appendix <- summary_stats_appendix %>% 
+  mutate(across(where(is.numeric), ~ round(., 2)))
+
+mean_turntakings_all <- mean(all_filtered_data$turn_takings, na.rm = TRUE)
+mean_turntakings_all
+```
+
+
+```{r}
+
+all_filtered_data$Level <- factor(all_filtered_data$Level, levels = c("Low", "High"))
 
 ```
 
 # VISUALIZING DATA
 
+## Visualizing groups 
 
 ```{r}
-ggplot(data, aes(x = personality, y = team_score, fill = personality)) +
-  geom_bar(stat = "identity", color = "black") +
-  labs(title = "Team Scores for Each Trait",
-       x = "Personality Trait",
-       y = "Team Score") +
-  theme_minimal() +
-  ylim(0, 100) +
+ggplot(all_filtered_data, aes(x = Level, fill = Trait)) +
+  geom_bar(position = position_dodge2(padding = 0.2), width = 0.8) +
+  geom_text(stat = "count", aes(label = after_stat(count)), 
+            position = position_dodge2(width = 0.8, padding = 0.2), vjust = -0.5) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Count of Group Constellations after Preprocessing",
+    x = "Trait Level",
+    y = "Count"
+  ) +
+  facet_grid(. ~ Trait, scales = "free_x", space = "free_x") +
+  theme_minimal(base_size = 14) +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    legend.position = "none"
-  )
-```
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    panel.grid.major.x = element_blank(),
+    strip.text.x = element_text(face = "bold"),
+    legend.position = "none", 
+    plot.margin = margin(10, 30, 10, 10)  # Add small extra space
+  ) +
+  coord_cartesian(expand = TRUE) +
+  theme(strip.text.x = element_text(size = 8, margin = margin(t = 5, b = 5))) + # Extra spacing for facet labels
+  ylim(0, 155)
 
-```{r}
-# Bar plot with error bars
-ggplot(summary_stats, aes(x = personality, y = mean_team_score, fill = personality)) +
-  geom_bar(stat = "identity", color = "black", width = 0.6) +
-  geom_errorbar(aes(ymin = mean_team_score - sd_team_score, ymax = mean_team_score + sd_team_score),
-                width = 0.2) +
-  labs(title = "Mean Team Scores with Standard Deviation",
-       x = "Personality Trait",
-       y = "Mean Team Score") +
-  theme_minimal() +
-  ylim(0, 100) +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    legend.position = "none"
-  )
 
 ```
 
+
+
+## Team Scores visualized 
+
+
+```{r}
+# boxplots of team score
+ggplot(all_filtered_data, aes(x = Trait, y = team_score, fill = Trait)) +
+  geom_boxplot(aes(group = interaction(Trait, Level))) +
+  geom_hline(yintercept = 0, color = "red", size = 0.6) + 
+  labs(
+    title = "Boxplots of Team Scores across Group Constellations",
+    x = "Personality Trait",
+    y = "Team Score"
+  ) +
+  scale_fill_brewer(palette = "Set2") + # Custom trait colors
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 14, face = "bold")
+  ) +
+  ylim(-0.3, 0.3)
+```
+
+```{r}
+ggplot(summary_stats, aes(x = Level, y = mean_team_score, group = Trait, color = Trait)) +
+  geom_point(size = 3) +  # Points for High and Low scores
+  geom_line(size = 1) +   # Lines connecting the points
+  geom_errorbar(aes(ymin = mean_team_score - se_team_score, ymax = mean_team_score + se_team_score), 
+                width = 0.2) +  # Error bars for uncertainty
+  labs(
+    title = "Mean Team Scores with Standard Error",
+    x = "Trait Level",
+    y = "Mean Team Score",
+    color = "Personality Trait"
+  ) +
+  theme_minimal() + 
+  theme(
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 14, face = "bold")
+  )
+```
+
+
+
+## Visualizing Synergy Score
+
+```{r}
+# boxplots of synergy
+ggplot(all_filtered_data, aes(x = Trait, y = synergy_score, fill = Trait)) +
+  geom_boxplot(aes(group = interaction(Trait, Level))) +
+  geom_hline(yintercept = 0, color = "red", size = 0.6) + 
+  labs(
+    title = "Boxplots of Synergy Scores across Group Constellations",
+    x = "Personality Trait",
+    y = "Synergy Score"
+  ) +
+  scale_fill_brewer(palette = "Set2") + # Custom trait colors
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 14, face = "bold")
+  ) +
+  ylim(-0.3, 0.3)
+
+```
+
+
+
+```{r}
+ggplot(summary_stats, aes(x = Level, y = mean_synergy_score, group = Trait, color = Trait)) +
+  geom_point(size = 3) +  # Points for High and Low scores
+  geom_line(size = 1) +   # Lines connecting the points
+  geom_errorbar(aes(ymin = mean_synergy_score - se_synergy_score, ymax = mean_synergy_score + se_synergy_score), 
+                width = 0.2) +  # Error bars for uncertainty
+  labs(
+    title = "Mean Synergy Scores with Standard Error",
+    x = "Trait Level",
+    y = "Mean Synergy Score",
+    color = "Personality Trait"
+  ) +
+  theme_minimal() + 
+  theme(
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 14, face = "bold")
+  )
+```
+
+
+## Turn-Takings visualized 
+
+```{r}
+# Calculate the overall mean of turn-takings
+overall_mean <- mean(all_filtered_data$turn_takings, na.rm = TRUE)
+
+# Create the plot
+ggplot(all_filtered_data, aes(x = Trait, y = turn_takings, fill = Trait)) +
+  geom_boxplot(aes(group = interaction(Trait, Level))) +
+  geom_hline(yintercept = overall_mean, color = "red", size = 0.6) + 
+  labs(
+    title = "Boxplots of Turn-takings by Group Constellation",
+    x = "Personality Trait",
+    y = "Turn-takings"
+  ) +
+  scale_fill_brewer(palette = "Set2") + # Custom trait colors
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 14, face = "bold")
+  ) +
+  ylim(0, 35)
+```
+
+
+
+```{r}
+ggplot(summary_stats, aes(x = Level, y = mean_turntakings, group = Trait, color = Trait)) +
+  geom_point(size = 3) +  # Points for High and Low scores
+  geom_line(size = 1) +   # Lines connecting the points
+  geom_errorbar(aes(ymin = mean_turntakings - se_turntakings, ymax = mean_turntakings + se_turntakings), 
+                width = 0.2) +  # Error bars for uncertainty
+  labs(
+    title = "Mean Turn-takings with Standard Error",
+    x = "Trait Level",
+    y = "Mean Turn-takings",
+    color = "Personality Trait"
+  ) +
+  theme_minimal() + 
+  theme(
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 14, face = "bold")
+  )
+
+```
 
 
